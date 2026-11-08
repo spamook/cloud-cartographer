@@ -159,13 +159,16 @@ def collect(prom, start, end, database="app"):
             end)
     errors = prom.value(
         f'sum(increase(traefik_entrypoint_requests_total{{entrypoint="web",code=~"5.."}}[{window}]))', end)
+    # Traefik's own `service` label is renamed to `exported_service`: the scrape target's Service
+    # name takes `service`
     services = {}
     for svc, points in prom.range_by(
-            'sum by (service) (rate(traefik_service_requests_total[1m]))', "service", start, end).items():
+            'sum by (exported_service) (rate(traefik_service_requests_total[1m]))', "exported_service",
+            start, end).items():
         svc_out = prom.range(
-            f'sum(rate(traefik_service_responses_bytes_total{{service="{svc}"}}[1m]))', start, end)
+            f'sum(rate(traefik_service_responses_bytes_total{{exported_service="{svc}"}}[1m]))', start, end)
         svc_lat = prom.value(
-            f'histogram_quantile(0.95, sum by (le) (increase(traefik_service_request_duration_seconds_bucket{{service="{svc}"}}[{window}])))',
+            f'histogram_quantile(0.95, sum by (le) (increase(traefik_service_request_duration_seconds_bucket{{exported_service="{svc}"}}[{window}])))',
             end)
         reqs = total(points) or 0
         services[svc] = {

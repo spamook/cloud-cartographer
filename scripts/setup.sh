@@ -42,8 +42,12 @@ put_secret monitoring postgres-exporter password="$(password postgres-exporter)"
 helm upgrade --install postgres-exporter prometheus-community/prometheus-postgres-exporter \
     --version 8.2.3 -n monitoring -f deploy/values/postgres-exporter.yaml --wait --timeout 10m
 
-step "Ingress for Grafana and Prometheus"
+step "Ingress for Grafana and Prometheus, baseline dashboard"
 kubectl apply -f deploy/local/ingress.yaml
+# Grafana's sidecar loads every ConfigMap labelled grafana_dashboard=1
+kubectl -n monitoring create configmap dashboard-baseline \
+    --from-file=baseline.json=deploy/dashboards/baseline.json --dry-run=client -o yaml |
+    kubectl label --local -f - grafana_dashboard=1 -o yaml | kubectl apply -f -
 
 echo
 echo "Grafana:    http://$IP/grafana  (admin / password in .secrets/grafana-admin)"

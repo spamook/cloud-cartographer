@@ -1,0 +1,156 @@
+{
+  "title": "Cloud Cartographer: baseline",
+  "uid": "cc-baseline",
+  "tags": ["cloud-cartographer"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "schemaVersion": 39,
+  "templating": {"list": []},
+  "panels": [
+    {
+      "type": "row", "title": "Resources per component", "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries", "title": "CPU (cores) by pod",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 1},
+      "fieldConfig": {"defaults": {"unit": "short", "custom": {"stacking": {"mode": "normal"}, "fillOpacity": 30}}},
+      "targets": [{"refId": "A", "legendFormat": "{{namespace}}/{{pod}}",
+        "expr": "sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{container!=\"\", namespace=~\"app|monitoring|ingress\"}[1m]))"}]
+    },
+    {
+      "type": "timeseries", "title": "Memory (working set) by pod",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 1},
+      "fieldConfig": {"defaults": {"unit": "bytes", "custom": {"stacking": {"mode": "normal"}, "fillOpacity": 30}}},
+      "targets": [{"refId": "A", "legendFormat": "{{namespace}}/{{pod}}",
+        "expr": "sum by (namespace, pod) (container_memory_working_set_bytes{container!=\"\", namespace=~\"app|monitoring|ingress\"})"}]
+    },
+    {
+      "type": "timeseries", "title": "Network received / sent by pod",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9},
+      "fieldConfig": {"defaults": {"unit": "Bps"}},
+      "targets": [
+        {"refId": "A", "legendFormat": "in {{namespace}}/{{pod}}",
+         "expr": "sum by (namespace, pod) (rate(container_network_receive_bytes_total{namespace=~\"app|monitoring|ingress\"}[1m]))"},
+        {"refId": "B", "legendFormat": "out {{namespace}}/{{pod}}",
+         "expr": "-sum by (namespace, pod) (rate(container_network_transmit_bytes_total{namespace=~\"app|monitoring|ingress\"}[1m]))"}
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Node disk: throughput and IOPS",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9},
+      "fieldConfig": {"defaults": {"unit": "Bps"}, "overrides": [
+        {"matcher": {"id": "byRegexp", "options": "IOPS.*"}, "properties": [
+          {"id": "unit", "value": "iops"}, {"id": "custom.axisPlacement", "value": "right"}]}]},
+      "targets": [
+        {"refId": "A", "legendFormat": "written", "expr": "sum(rate(node_disk_written_bytes_total{device!~\"dm-.*\"}[1m]))"},
+        {"refId": "B", "legendFormat": "read", "expr": "sum(rate(node_disk_read_bytes_total{device!~\"dm-.*\"}[1m]))"},
+        {"refId": "C", "legendFormat": "IOPS write", "expr": "sum(rate(node_disk_writes_completed_total{device!~\"dm-.*\"}[1m]))"},
+        {"refId": "D", "legendFormat": "IOPS read", "expr": "sum(rate(node_disk_reads_completed_total{device!~\"dm-.*\"}[1m]))"}
+      ]
+    },
+    {
+      "type": "row", "title": "External traffic (Traefik = the load balancer)", "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 17}
+    },
+    {
+      "type": "timeseries", "title": "Requests per second by service",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 18},
+      "fieldConfig": {"defaults": {"unit": "reqps"}},
+      "targets": [{"refId": "A", "legendFormat": "{{exported_service}} {{code}}",
+        "expr": "sum by (exported_service, code) (rate(traefik_service_requests_total[1m]))"}]
+    },
+    {
+      "type": "timeseries", "title": "Latency p50 / p95 / p99",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 18},
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "targets": [
+        {"refId": "A", "legendFormat": "p50", "expr": "histogram_quantile(0.5, sum by (le) (rate(traefik_entrypoint_request_duration_seconds_bucket{entrypoint=\"web\"}[2m])))"},
+        {"refId": "B", "legendFormat": "p95", "expr": "histogram_quantile(0.95, sum by (le) (rate(traefik_entrypoint_request_duration_seconds_bucket{entrypoint=\"web\"}[2m])))"},
+        {"refId": "C", "legendFormat": "p99", "expr": "histogram_quantile(0.99, sum by (le) (rate(traefik_entrypoint_request_duration_seconds_bucket{entrypoint=\"web\"}[2m])))"}
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Bytes in / out (egress in the cloud)",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 18},
+      "fieldConfig": {"defaults": {"unit": "Bps"}},
+      "targets": [
+        {"refId": "A", "legendFormat": "out (responses)", "expr": "sum(rate(traefik_entrypoint_responses_bytes_total{entrypoint=\"web\"}[1m]))"},
+        {"refId": "B", "legendFormat": "in (requests)", "expr": "sum(rate(traefik_entrypoint_requests_bytes_total{entrypoint=\"web\"}[1m]))"}
+      ]
+    },
+    {
+      "type": "row", "title": "Database", "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 26}
+    },
+    {
+      "type": "timeseries", "title": "Transactions per second",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 27},
+      "fieldConfig": {"defaults": {"unit": "ops"}},
+      "targets": [{"refId": "A", "legendFormat": "{{datname}}",
+        "expr": "sum by (datname) (rate(pg_stat_database_xact_commit{datname!~\"template.*|postgres\"}[1m]) + rate(pg_stat_database_xact_rollback{datname!~\"template.*|postgres\"}[1m]))"}]
+    },
+    {
+      "type": "timeseries", "title": "Mean statement execution time",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 27},
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "targets": [{"refId": "A", "legendFormat": "{{datname}}",
+        "expr": "sum by (datname) (rate(pg_stat_statements_seconds_total[2m])) / sum by (datname) (rate(pg_stat_statements_calls_total[2m]))"}]
+    },
+    {
+      "type": "timeseries", "title": "Connections",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 27},
+      "targets": [{"refId": "A", "legendFormat": "{{datname}}",
+        "expr": "sum by (datname) (pg_stat_database_numbackends{datname!~\"template.*\"})"}]
+    },
+    {
+      "type": "timeseries", "title": "Database size",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 27},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [{"refId": "A", "legendFormat": "{{datname}}",
+        "expr": "pg_database_size_bytes{datname!~\"template.*\"}"}]
+    },
+    {
+      "type": "row", "title": "Monitoring's own growth", "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 35}
+    },
+    {
+      "type": "timeseries", "title": "Loki: log bytes received per second",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 36},
+      "fieldConfig": {"defaults": {"unit": "Bps"}},
+      "targets": [{"refId": "A", "legendFormat": "received", "expr": "sum(rate(loki_distributor_bytes_received_total[2m]))"}]
+    },
+    {
+      "type": "timeseries", "title": "Prometheus: samples per second and series",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 36},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": [
+        {"matcher": {"id": "byName", "options": "series"}, "properties": [{"id": "custom.axisPlacement", "value": "right"}]}]},
+      "targets": [
+        {"refId": "A", "legendFormat": "samples/s", "expr": "sum(rate(prometheus_tsdb_head_samples_appended_total[2m]))"},
+        {"refId": "B", "legendFormat": "series", "expr": "sum(prometheus_tsdb_head_series)"}
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Prometheus: TSDB + WAL on disk",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 36},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [{"refId": "A", "legendFormat": "TSDB + WAL",
+        "expr": "sum(prometheus_tsdb_storage_blocks_bytes) + sum(prometheus_tsdb_wal_storage_size_bytes)"}]
+    }
+  ]
+}
