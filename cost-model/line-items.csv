@@ -26,7 +26,7 @@ aws,test,network,"ALB (external, frontend)",1.0,hour,0.02394,17.48,17.48,alb,alb
 aws,test,network,ALB capacity units (average),0.2,hour,0.0076,1.11,1.11,alb_lcu,alb_lcu,https://aws.amazon.com/elasticloadbalancing/pricing/
 aws,test,network,"NLB (internal: Grafana, Prometheus, Argo CD)",1.0,hour,0.02394,17.48,17.48,nlb,nlb,https://aws.amazon.com/elasticloadbalancing/pricing/
 aws,test,network,"Internet egress, GB",20.0,gb,0.09,1.8,1.8,egress,egress,https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer
-aws,test,storage,"S3: Loki chunks and index, GB (steady state)",13.6875,gb_month,0.023,0.31,0.31,s3_standard,s3_standard,https://aws.amazon.com/s3/pricing/
+aws,test,storage,"S3: Loki chunks and index, GB (steady state)",18.25,gb_month,0.023,0.42,0.42,s3_standard,s3_standard,https://aws.amazon.com/s3/pricing/
 aws,test,storage,"S3 requests from Loki (PUT, thousands)",60.0,thousand,0.005,0.3,0.3,s3_put,s3_put,https://aws.amazon.com/s3/pricing/
 aws,test,other,Route 53 private hosted zone,1.0,month,0.5,0.5,0.5,route53_zone,route53_zone,https://aws.amazon.com/route53/pricing/
 aws,test,other,Secrets Manager: database and app secrets,4.0,month,0.4,1.6,1.6,secrets_manager,secrets_manager,https://aws.amazon.com/secrets-manager/pricing/
@@ -50,7 +50,7 @@ aws,prod,network,"NLB (internal: Grafana, Prometheus, Argo CD)",1.0,hour,0.02394
 aws,prod,network,"Internet egress above the free 100 GB, GB",900.0,gb,0.09,81.0,81.0,egress,egress,https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer
 aws,prod,network,"Traffic between availability zones, GB",100.0,gb,0.02,2.0,2.0,inter_az,inter_az,https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer
 aws,prod,network,"VPC peering to the shared VPC (GitLab), GB",5.0,gb,0.02,0.1,0.1,vpc_peering,vpc_peering,https://aws.amazon.com/vpc/pricing/
-aws,prod,storage,"S3: Loki chunks and index, GB (steady state after a year)",91.25,gb_month,0.023,2.1,2.1,s3_standard,s3_standard,https://aws.amazon.com/s3/pricing/
+aws,prod,storage,"S3: Loki chunks and index, GB (steady state after a year)",121.66666666666667,gb_month,0.023,2.8,2.8,s3_standard,s3_standard,https://aws.amazon.com/s3/pricing/
 aws,prod,storage,"S3 PUT requests from Loki, thousands",300.0,thousand,0.005,1.5,1.5,s3_put,s3_put,https://aws.amazon.com/s3/pricing/
 aws,prod,storage,"S3 GET requests from Loki queries, thousands",1000.0,thousand,0.0004,0.4,0.4,s3_get,s3_get,https://aws.amazon.com/s3/pricing/
 aws,prod,other,Route 53 private hosted zone,1.0,month,0.5,0.5,0.5,route53_zone,route53_zone,https://aws.amazon.com/route53/pricing/
@@ -86,7 +86,7 @@ gcp,test,network,"Cloud NAT data processed, GB",20.0,gb,0.045,0.9,0.9,nat_proces
 gcp,test,network,Load balancer forwarding rules: external + internal,2.0,hour,0.028,40.88,40.88,lb_rule,lb_rule,https://cloud.google.com/vpc/network-pricing#lb
 gcp,test,network,"Load balancer data processed, GB",40.0,gb,0.009,0.36,0.36,lb_processed,lb_processed,https://cloud.google.com/vpc/network-pricing#lb
 gcp,test,network,"Internet egress (Premium Tier), GB",20.0,gb,0.12,2.4,2.4,egress,egress,https://cloud.google.com/vpc/network-pricing#internet_egress
-gcp,test,storage,"Cloud Storage: Loki chunks and index, GB (steady state)",13.6875,gb_month,0.02,0.27,0.27,gcs_standard,gcs_standard,https://cloud.google.com/storage/pricing
+gcp,test,storage,"Cloud Storage: Loki chunks and index, GB (steady state)",18.25,gb_month,0.02,0.36,0.36,gcs_standard,gcs_standard,https://cloud.google.com/storage/pricing
 gcp,test,storage,"Cloud Storage class A operations from Loki, thousands",60.0,thousand,0.005,0.3,0.3,gcs_class_a,gcs_class_a,https://cloud.google.com/storage/pricing
 gcp,test,other,Cloud DNS private zone,1.0,month,0.2,0.2,0.2,dns_zone,dns_zone,https://cloud.google.com/dns/pricing
 gcp,prod,kubernetes,"GKE Standard cluster, regional (3 zones)",1.0,hour,0.1,73.0,73.0,gke_cluster,gke_cluster,https://cloud.google.com/kubernetes-engine/pricing
@@ -108,7 +108,7 @@ gcp,prod,network,"Load balancer data processed (requests + responses), GB",1100.
 gcp,prod,network,"Internet egress (Premium Tier), GB",1000.0,gb,0.12,120.0,120.0,egress,egress,https://cloud.google.com/vpc/network-pricing#internet_egress
 gcp,prod,network,"Traffic between zones, GB",100.0,gb,0.01,1.0,1.0,inter_zone,inter_zone,https://cloud.google.com/vpc/network-pricing
 gcp,prod,network,"VPC peering to the shared VPC (GitLab), GB",5.0,gb,0.01,0.05,0.05,vpc_peering,vpc_peering,https://cloud.google.com/vpc/network-pricing
-gcp,prod,storage,"Cloud Storage: Loki chunks and index, GB (steady state after a year)",91.25,gb_month,0.02,1.82,1.82,gcs_standard,gcs_standard,https://cloud.google.com/storage/pricing
+gcp,prod,storage,"Cloud Storage: Loki chunks and index, GB (steady state after a year)",121.66666666666667,gb_month,0.02,2.43,2.43,gcs_standard,gcs_standard,https://cloud.google.com/storage/pricing
 gcp,prod,storage,"Cloud Storage class A operations from Loki, thousands",300.0,thousand,0.005,1.5,1.5,gcs_class_a,gcs_class_a,https://cloud.google.com/storage/pricing
 gcp,prod,storage,"Cloud Storage class B operations from Loki queries, thousands",1000.0,thousand,0.0004,0.4,0.4,gcs_class_b,gcs_class_b,https://cloud.google.com/storage/pricing
 gcp,prod,other,Cloud DNS private zone,1.0,month,0.2,0.2,0.2,dns_zone,dns_zone,https://cloud.google.com/dns/pricing

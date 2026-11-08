@@ -20,8 +20,8 @@ prices both for two environments, `test` and `prod`, sized for 1,000 simultaneou
 
 | | AWS (eu-north-1) | Google Cloud (europe-north1) |
 |---|---|---|
-| On-demand, per month | $1,052 | $923 |
-| Optimised, per month | $821 | $676 |
+| On-demand, per month | $1,053 | $924 |
+| Optimised, per month | $822 | $676 |
 
 - *Optimised* means:
   - test runs on Spot capacity and only in working hours;
@@ -38,7 +38,8 @@ cost-model/           prices.toml (unit prices + sources), bom.toml (what runs w
 measurements/         one folder per measured run: summary.md, summary.json, samples.csv
 scripts/              cluster-up.sh, setup.sh, measure.py, db-benchmark.sh, load-test.sh
 load/                 Locust scenario with the user steps
-deploy/local/         namespaces, PostgreSQL, ingress for Grafana and Prometheus
+deploy/charts/        Helm chart of the sample app (frontend, backend, ingress, HPA, PDB)
+deploy/local/         namespaces, PostgreSQL, ingress for Grafana and Prometheus, log generator
 deploy/values/        Helm values: kube-prometheus-stack, Loki, Alloy, postgres-exporter, Traefik
 deploy/dashboards/    Grafana dashboard "Cloud Cartographer: baseline"
 app/                  the sample application

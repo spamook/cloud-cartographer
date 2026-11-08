@@ -23,7 +23,7 @@ peering_gb = 5              # Argo CD and runners talking to GitLab in the share
 # logs (Loki) and metrics (Prometheus)
 log_gb_day_prod = 2.0       # raw log lines received by Loki per day
 log_gb_day_test = 0.3
-log_compression = 8         # chunks are compressed (snappy/gzip); 6-10x is typical for text logs
+log_compression = 6         # measured (03-log-volume): 6.1x mean per chunk, 8.9x over all stored bytes
 log_retention_days = 365
 loki_put_thousands_prod = 300
 loki_get_thousands_prod = 1000

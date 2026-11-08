@@ -89,8 +89,24 @@ a wide margin.
   | Volume | Growth | Projection |
   |---|---|---|
   | Prometheus TSDB | ~50 MiB/h for 42k series in its first hours | at 2,500 samples/s and 1–2 bytes per sample: 6–13 GB per 30 days; prod has ~2× the series → **50 GB volume** |
-  | Loki | ~1 MiB/h of log lines idle | grows with traffic |
+  | Loki | ~1 MiB/h of log lines idle; 165 MiB/h in the log test | grows with traffic; chunks are stored ~6–9× smaller than the raw lines (below) |
   | PostgreSQL | grows with the app's data | — |
+
+### Logs: what a stream of logs costs (log generator)
+
+A generator wrote ~290 JSON access-log lines per second (48 KB/s, ~4 GB/day, about twice the prod
+assumption) for 15 minutes. Alloy shipped them to Loki
+([03-log-volume](../measurements/03-log-volume/summary.md)):
+
+| | Idle | ~4 GB/day of logs |
+|---|---|---|
+| Loki CPU / RAM | 8 m / 158 MiB | 10 m / 185 MiB |
+| Alloy CPU / RAM | 11 m / 73 MiB | 16 m / 80 MiB |
+| Alloy → Loki on the wire | 1 KiB/s | 10 KiB/s for 48 KB/s of lines: the push is compressed ~5× |
+| Loki chunks | — | 41 MiB of lines → 4.9 MiB in 18 chunks: **6.1× mean per chunk, 8.9× overall** |
+
+Logs at this rate cost almost no compute. Their cost is storage that builds up for a year, which is
+why the cost analysis tracks the bucket month by month. The model uses the lower measured ratio, 6×.
 
 ### Network: internal and external traffic
 
@@ -264,7 +280,7 @@ flowchart LR
   exp -.->|scrape| prom[Prometheus]
   nodes[Nodes: cAdvisor, node-exporter,<br/>kube-state-metrics] -.->|"scrapes ~45 KiB/s<br/>(3.7 GB/day)"| prom
   pods[All pods: stdout] -.->|"Alloy → Loki: 1 KiB/s idle,<br/>grows with requests"| loki[Loki]
-  loki -.->|"compressed chunks ~8×"| bucket[(Object storage)]
+  loki -.->|"compressed chunks, 6–9× smaller (measured)"| bucket[(Object storage)]
   graf[Grafana] -.->|"queries on demand"| prom & loki
   reg[(Registry)] -->|"image pulls at deploy and scale-out<br/>(~100 MB per new node)"| nodes
 ```

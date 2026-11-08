@@ -37,7 +37,7 @@ Three environments per provider, laid out as in the [provider comparison](2-prov
 | `tools` node | 2 vCPU, 4 GB | Argo CD (~0.5 GB), ExternalDNS, the load balancer controller, cluster autoscaler, External Secrets (~0.15 GB), cert-manager. CI jobs run on a separate Spot node that exists only while jobs run |
 | Prod database | 2 vCPU burstable, 4 GB Multi-AZ / 1 vCPU, 3.75 GB HA | The local PostgreSQL handled ~2,900 TPS (pgbench, 16 clients) on 2 cores. The app needs a small fraction of that. Google's shared-core instances have no SLA, so prod uses a dedicated vCPU |
 | Prometheus volume | 50 GB | 30 days × ~5,000 samples/s × 1–2 bytes per sample ≈ 13–26 GB, plus WAL and headroom |
-| Logs | 2 GB/day received, ~8× compression, kept 365 days → ~91 GB in the bucket | **Assumption until the app run**: ~250 bytes of access and app log per request at ~100 requests/s on average. Loki's compression is measured in [03-log-volume](../measurements/03-log-volume/summary.md) |
+| Logs | 2 GB/day received, 6× compression, kept 365 days → ~122 GB in the bucket | **Volume is an assumption until the app run**: ~250 bytes of access and app log per request at ~100 requests/s on average. **Compression is measured** in [03-log-volume](../measurements/03-log-volume/summary.md): 6.1× mean per chunk, 8.9× over all stored bytes; the model uses the lower value |
 | Internet egress | 1,000 GB/month | **Assumption until the app run**: ~1 MB per user session (first page load ~0.6 MB, API calls ~0.4 MB) × ~1 million sessions a month (peak of 1,000 simultaneous users, ~250 on average over the day, 10-minute sessions) |
 
 These are the parameters at the top of `bom.toml`. The two assumptions are replaced by the measured
@@ -52,10 +52,10 @@ values of the sample app under load, and the tables below are regenerated.
 
 | Provider | Scenario | Shared | Test | Prod | **Total / month** | Per year |
 |---|---|---|---|---|---|---|
-| AWS (eu-north-1) | On-demand | $151 | $301 | $601 | **$1,052** | $12,629 |
-| AWS (eu-north-1) | Optimised | $120 | $154 | $547 | **$821** | $9,852 |
-| Google Cloud (europe-north1) | On-demand | $143 | $212 | $568 | **$923** | $11,077 |
-| Google Cloud (europe-north1) | Optimised | $103 | $91 | $481 | **$676** | $8,106 |
+| AWS (eu-north-1) | On-demand | $151 | $301 | $602 | **$1,053** | $12,639 |
+| AWS (eu-north-1) | Optimised | $120 | $154 | $547 | **$822** | $9,862 |
+| Google Cloud (europe-north1) | On-demand | $143 | $212 | $569 | **$924** | $11,085 |
+| Google Cloud (europe-north1) | Optimised | $103 | $91 | $482 | **$676** | $8,115 |
 
 *Optimised*: test on Spot capacity and scaled to zero outside working hours (264 of 730 h), 1-year commitments for the always-on prod nodes, the prod database and the GitLab VM, a NAT instance instead of a NAT gateway in AWS test.
 
@@ -66,10 +66,10 @@ values of the sample app under load, and the tables below are regenerated.
 | compute | $130 | $107 | $157 | $393 | 37% |
 | kubernetes | $0.00 | $73 | $73 | $146 | 14% |
 | database | $0.00 | $26 | $100 | $126 | 12% |
-| storage | $13 | $8.56 | $18 | $39 | 4% |
+| storage | $13 | $8.66 | $18 | $40 | 4% |
 | network | $3.65 | $83 | $249 | $336 | 32% |
 | other | $4.63 | $2.64 | $5.20 | $12 | 1% |
-| **total** | $151 | $301 | $601 | **$1,052** | 100% |
+| **total** | $151 | $301 | $602 | **$1,053** | 100% |
 
 ### Google Cloud (europe-north1): by component (on-demand)
 
@@ -78,10 +78,10 @@ values of the sample app under load, and the tables below are regenerated.
 | compute | $114 | $114 | $168 | $397 | 43% |
 | kubernetes | $0.00 | $0.00 | $73 | $73 | 8% |
 | database | $0.00 | $32 | $116 | $148 | 16% |
-| storage | $16 | $14 | $27 | $58 | 6% |
+| storage | $16 | $14 | $28 | $58 | 6% |
 | network | $8.77 | $51 | $183 | $243 | 26% |
 | other | $3.53 | $0.20 | $0.44 | $4.17 | 0% |
-| **total** | $143 | $212 | $568 | **$923** | 100% |
+| **total** | $143 | $212 | $569 | **$924** | 100% |
 
 ### AWS (eu-north-1): line items
 
@@ -114,7 +114,7 @@ values of the sample app under load, and the tables below are regenerated.
 | test | network | ALB capacity units (average) | 0.2 | [$0.0076/h](https://aws.amazon.com/elasticloadbalancing/pricing/) | $1.11 | $1.11 |
 | test | network | NLB (internal: Grafana, Prometheus, Argo CD) | 1 | [$0.02394/h](https://aws.amazon.com/elasticloadbalancing/pricing/) | $17 | $17 |
 | test | network | Internet egress, GB | 20 | [$0.09/GB](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer) | $1.80 | $1.80 |
-| test | storage | S3: Loki chunks and index, GB (steady state) | 13.69 | [$0.023/GB-mo](https://aws.amazon.com/s3/pricing/) | $0.31 | $0.31 |
+| test | storage | S3: Loki chunks and index, GB (steady state) | 18.25 | [$0.023/GB-mo](https://aws.amazon.com/s3/pricing/) | $0.42 | $0.42 |
 | test | storage | S3 requests from Loki (PUT, thousands) | 60 | [$0.005/1000](https://aws.amazon.com/s3/pricing/) | $0.30 | $0.30 |
 | test | other | Route 53 private hosted zone | 1 | [$0.5/mo](https://aws.amazon.com/route53/pricing/) | $0.50 | $0.50 |
 | test | other | Secrets Manager: database and app secrets | 4 | [$0.4/mo](https://aws.amazon.com/secrets-manager/pricing/) | $1.60 | $1.60 |
@@ -138,7 +138,7 @@ values of the sample app under load, and the tables below are regenerated.
 | prod | network | Internet egress above the free 100 GB, GB | 900 | [$0.09/GB](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer) | $81 | $81 |
 | prod | network | Traffic between availability zones, GB | 100 | [$0.02/GB](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer) | $2.00 | $2.00 |
 | prod | network | VPC peering to the shared VPC (GitLab), GB | 5 | [$0.02/GB](https://aws.amazon.com/vpc/pricing/) | $0.10 | $0.10 |
-| prod | storage | S3: Loki chunks and index, GB (steady state after a year) | 91.25 | [$0.023/GB-mo](https://aws.amazon.com/s3/pricing/) | $2.10 | $2.10 |
+| prod | storage | S3: Loki chunks and index, GB (steady state after a year) | 121.67 | [$0.023/GB-mo](https://aws.amazon.com/s3/pricing/) | $2.80 | $2.80 |
 | prod | storage | S3 PUT requests from Loki, thousands | 300 | [$0.005/1000](https://aws.amazon.com/s3/pricing/) | $1.50 | $1.50 |
 | prod | storage | S3 GET requests from Loki queries, thousands | 1,000 | [$0.0004/1000](https://aws.amazon.com/s3/pricing/) | $0.40 | $0.40 |
 | prod | other | Route 53 private hosted zone | 1 | [$0.5/mo](https://aws.amazon.com/route53/pricing/) | $0.50 | $0.50 |
@@ -179,7 +179,7 @@ values of the sample app under load, and the tables below are regenerated.
 | test | network | Load balancer forwarding rules: external + internal | 2 | [$0.028/h](https://cloud.google.com/vpc/network-pricing#lb) | $41 | $41 |
 | test | network | Load balancer data processed, GB | 40 | [$0.009/GB](https://cloud.google.com/vpc/network-pricing#lb) | $0.36 | $0.36 |
 | test | network | Internet egress (Premium Tier), GB | 20 | [$0.12/GB](https://cloud.google.com/vpc/network-pricing#internet_egress) | $2.40 | $2.40 |
-| test | storage | Cloud Storage: Loki chunks and index, GB (steady state) | 13.69 | [$0.02/GB-mo](https://cloud.google.com/storage/pricing) | $0.27 | $0.27 |
+| test | storage | Cloud Storage: Loki chunks and index, GB (steady state) | 18.25 | [$0.02/GB-mo](https://cloud.google.com/storage/pricing) | $0.36 | $0.36 |
 | test | storage | Cloud Storage class A operations from Loki, thousands | 60 | [$0.005/1000](https://cloud.google.com/storage/pricing) | $0.30 | $0.30 |
 | test | other | Cloud DNS private zone | 1 | [$0.2/mo](https://cloud.google.com/dns/pricing) | $0.20 | $0.20 |
 | prod | kubernetes | GKE Standard cluster, regional (3 zones) | 1 | [$0.1/h](https://cloud.google.com/kubernetes-engine/pricing) | $73 | $73 |
@@ -201,7 +201,7 @@ values of the sample app under load, and the tables below are regenerated.
 | prod | network | Internet egress (Premium Tier), GB | 1,000 | [$0.12/GB](https://cloud.google.com/vpc/network-pricing#internet_egress) | $120 | $120 |
 | prod | network | Traffic between zones, GB | 100 | [$0.01/GB](https://cloud.google.com/vpc/network-pricing) | $1.00 | $1.00 |
 | prod | network | VPC peering to the shared VPC (GitLab), GB | 5 | [$0.01/GB](https://cloud.google.com/vpc/network-pricing) | $0.05 | $0.05 |
-| prod | storage | Cloud Storage: Loki chunks and index, GB (steady state after a year) | 91.25 | [$0.02/GB-mo](https://cloud.google.com/storage/pricing) | $1.82 | $1.82 |
+| prod | storage | Cloud Storage: Loki chunks and index, GB (steady state after a year) | 121.67 | [$0.02/GB-mo](https://cloud.google.com/storage/pricing) | $2.43 | $2.43 |
 | prod | storage | Cloud Storage class A operations from Loki, thousands | 300 | [$0.005/1000](https://cloud.google.com/storage/pricing) | $1.50 | $1.50 |
 | prod | storage | Cloud Storage class B operations from Loki queries, thousands | 1,000 | [$0.0004/1000](https://cloud.google.com/storage/pricing) | $0.40 | $0.40 |
 | prod | other | Cloud DNS private zone | 1 | [$0.2/mo](https://cloud.google.com/dns/pricing) | $0.20 | $0.20 |
@@ -209,18 +209,18 @@ values of the sample app under load, and the tables below are regenerated.
 
 ### Hidden cost: log accumulation over the first year (prod)
 
-Loki receives 2 GB of log lines a day and stores them compressed (~8×); logs are kept 365 days, so the bucket grows every month until the first deletions start in month 13.
+Loki receives 2 GB of log lines a day and stores them compressed (~6×); logs are kept 365 days, so the bucket grows every month until the first deletions start in month 13.
 
 | Month | Stored in the bucket | AWS S3 Standard | Cloud Storage Standard |
 |---|---|---|---|
-| 1 | 8 GB | $0.17 | $0.15 |
-| 2 | 15 GB | $0.35 | $0.30 |
-| 3 | 23 GB | $0.52 | $0.46 |
-| 6 | 46 GB | $1.05 | $0.91 |
-| 9 | 68 GB | $1.57 | $1.37 |
-| 12 | 91 GB | $2.10 | $1.82 |
+| 1 | 10 GB | $0.23 | $0.20 |
+| 2 | 20 GB | $0.47 | $0.41 |
+| 3 | 30 GB | $0.70 | $0.61 |
+| 6 | 61 GB | $1.40 | $1.22 |
+| 9 | 91 GB | $2.10 | $1.82 |
+| 12 | 122 GB | $2.80 | $2.43 |
 
-Sum over the first 12 months: $14 on AWS, $12 on Google Cloud. Moving chunks older than 30 days to an infrequent-access class would halve the storage price, but every query over old logs then pays a retrieval fee, so it pays off only for logs that are rarely read.
+Sum over the first 12 months: $18 on AWS, $16 on Google Cloud. Moving chunks older than 30 days to an infrequent-access class would halve the storage price, but every query over old logs then pays a retrieval fee, so it pays off only for logs that are rarely read.
 
 <!-- cost-model:end -->
 
