@@ -1,0 +1,122 @@
+{{- range $name := list "frontend" "backend" }}
+{{- $c := index $.Values $name }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "sample-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+spec:
+  {{- if not $.Values.autoscaling.enabled }}
+  replicas: {{ $c.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  template:
+    metadata:
+      labels:
+        {{- include "sample-app.labels" $ | nindent 8 }}
+        app.kubernetes.io/name: {{ $name }}
+    spec:
+      securityContext:
+        {{- include "sample-app.podSecurity" $ | nindent 8 }}
+      # one replica per zone where there are several
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ $name }}
+      containers:
+        - name: {{ $name }}
+          image: {{ $c.image }}
+          ports:
+            - name: http
+              containerPort: {{ $c.port }}
+          env:
+            {{- range $k, $v := $c.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+            {{- if eq $name "backend" }}
+            {{- $db := $c.database }}
+            - name: {{ $db.envNames.host }}
+              value: {{ $db.host | quote }}
+            - name: {{ $db.envNames.port }}
+              value: {{ $db.port | quote }}
+            - name: {{ $db.envNames.name }}
+              value: {{ $db.name | quote }}
+            - name: {{ $db.envNames.user }}
+              value: {{ $db.user | quote }}
+            - name: {{ $db.envNames.password }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $db.secretName }}
+                  key: {{ $db.passwordKey }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: {{ if eq $name "backend" }}{{ $c.healthPath }}{{ else }}/{{ end }}
+              port: http
+            periodSeconds: 5
+          resources:
+            {{- toYaml $c.resources | nindent 12 }}
+          securityContext:
+            {{- include "sample-app.containerSecurity" $ | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "sample-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ $name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- if $.Values.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "sample-app.labels" $ | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  minReplicas: {{ $.Values.autoscaling.minReplicas }}
+  maxReplicas: {{ $.Values.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $.Values.autoscaling.cpuPercent }}
+{{- end }}
+{{- if $.Values.podDisruptionBudget.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "sample-app.labels" $ | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+{{- end }}
+{{- end }}

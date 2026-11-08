@@ -1,0 +1,52 @@
+# The same chart runs locally and in the cloud; only these values differ.
+
+frontend:
+  image: sample-frontend:1.0     # locally built with `minikube image build`; in the cloud from the registry
+  port: 8080                     # nginx-unprivileged: the namespace allows only non-root containers
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 32Mi}
+    limits: {cpu: 500m, memory: 128Mi}
+  env: {}
+
+backend:
+  image: sample-backend:1.0
+  port: 8080
+  replicas: 1
+  healthPath: /health
+  resources:
+    requests: {cpu: 100m, memory: 64Mi}
+    limits: {cpu: "1", memory: 256Mi}
+  # plain variables; names depend on the app
+  env: {}
+  # database connection taken from a Secret (locally the `postgres` Secret of scripts/setup.sh,
+  # in the cloud one synced by External Secrets): variable name → key in the Secret
+  database:
+    secretName: postgres
+    host: postgres.app.svc.cluster.local
+    port: "5432"
+    name: app
+    user: app
+    passwordKey: password
+    envNames:
+      host: DB_HOST
+      port: DB_PORT
+      name: DB_NAME
+      user: DB_USER
+      password: DB_PASSWORD
+
+ingress:
+  className: traefik           # cloud: alb (AWS Load Balancer Controller) or gce
+  host: ""                     # cloud: the public name, e.g. app.example
+  annotations: {}
+  apiPath: /api                # requests under this path go to the backend
+  stripApiPrefix: false
+
+autoscaling:
+  enabled: false               # true in the cloud: HPA on CPU
+  minReplicas: 2
+  maxReplicas: 10
+  cpuPercent: 70
+
+podDisruptionBudget:
+  enabled: false               # true in prod (zone failures, node drains)
