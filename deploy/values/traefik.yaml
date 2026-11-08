@@ -1,0 +1,41 @@
+# Traefik: the ingress controller of the local setup (the cloud load balancers' role). It binds
+# port 80 of the node, so everything is reachable on the Minikube IP. Its metrics are the
+# "external traffic" numbers of the baseline: requests, latency and bytes per service.
+deployment:
+  replicas: 1
+# only one pod can hold the node's port 80: replace the pod instead of starting a second one
+updateStrategy:
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 0
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+  name: traefik
+providers:
+  kubernetesCRD:
+    enabled: true
+  kubernetesIngress:
+    enabled: true
+ports:
+  web:
+    hostPort: 80
+  websecure:
+    expose:
+      default: false
+service:
+  spec:
+    type: ClusterIP
+accessLog:
+  enabled: true
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    service:
+      enabled: true
+    serviceMonitor:
+      enabled: true
+resources:
+  requests: {cpu: 100m, memory: 64Mi}
+  limits: {cpu: "1", memory: 256Mi}

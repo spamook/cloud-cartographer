@@ -1,0 +1,4 @@
+# Scripts and manifests run on Linux (the Minikube VM, containers). Keep LF line endings even
+# when cloned on Windows with core.autocrlf=true, otherwise "#!/usr/bin/env bash\r" breaks.
+* text=auto eol=lf
+*.png binary

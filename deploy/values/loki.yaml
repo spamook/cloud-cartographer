@@ -1,0 +1,58 @@
+# Loki in its smallest form: one pod (Monolithic mode) with chunks and index on a
+# PersistentVolume. The cloud setup uses the same mode with S3 / Cloud Storage and keeps logs
+# for a year; locally a month is enough to measure how fast they grow.
+deploymentMode: Monolithic
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  limits_config:
+    retention_period: 744h
+  compactor:
+    retention_enabled: true
+    delete_request_store: filesystem
+  pattern_ingester:
+    enabled: false
+
+singleBinary:
+  replicas: 1
+  persistence:
+    size: 10Gi
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 1Gi}
+
+# the scalable targets stay off in Monolithic mode
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# extras a single small instance doesn't need
+gateway:
+  enabled: false
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+lokiCanary:
+  enabled: false
+test:
+  enabled: false
+
+monitoring:
+  serviceMonitor:
+    enabled: true

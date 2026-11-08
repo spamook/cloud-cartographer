@@ -1,0 +1,24 @@
+# Namespaces of the local setup. In the cloud the same split becomes node pools: the app runs on
+# `main`, monitoring on `monitoring`, Traefik's role is taken by the cloud load balancers.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+# node-exporter (host network, host PID) and Alloy (reads /var/log on the node) need host access
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+---
+# Traefik binds port 80 of the node
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ingress
+  labels:
+    pod-security.kubernetes.io/enforce: privileged

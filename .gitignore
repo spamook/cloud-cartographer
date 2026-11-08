@@ -1,0 +1,5 @@
+# local tools and generated credentials
+.venv/
+.secrets/
+__pycache__/
+*.log

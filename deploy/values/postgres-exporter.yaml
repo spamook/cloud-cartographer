@@ -1,0 +1,20 @@
+# Prometheus Postgres exporter. It logs in as postgres_exporter (role pg_monitor, created by the
+# database's init script); in the cloud the same exporter points at the managed database.
+config:
+  datasource:
+    host: postgres.app.svc.cluster.local
+    port: "5432"
+    database: app
+    user: postgres_exporter
+    passwordSecret:
+      name: postgres-exporter
+      key: password
+    sslmode: disable
+  # per-query call counts and execution time: the database latency of the baseline
+  extraArgs:
+    - --collector.stat_statements
+serviceMonitor:
+  enabled: true
+resources:
+  requests: {cpu: 10m, memory: 32Mi}
+  limits: {memory: 128Mi}

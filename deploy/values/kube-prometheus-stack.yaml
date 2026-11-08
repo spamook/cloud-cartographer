@@ -1,0 +1,91 @@
+# Prometheus, Grafana, node-exporter and kube-state-metrics. Prometheus keeps the local metrics
+# on a PersistentVolume, so its storage growth can be measured; the cloud setup keeps 30 days.
+fullnameOverride: kps
+
+# not needed locally: alerts go nowhere, and Minikube's control plane binds its metrics to
+# 127.0.0.1, so those scrape targets would only be down
+alertmanager:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+defaultRules:
+  rules:
+    alertmanager: false
+    etcd: false
+    kubeControllerManager: false
+    kubeProxy: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+
+prometheus:
+  prometheusSpec:
+    # served under http://<node IP>/prometheus (setup.sh sets externalUrl)
+    routePrefix: /prometheus
+    scrapeInterval: 15s
+    evaluationInterval: 30s
+    retention: 15d
+    retentionSize: 8GB
+    # pick up every ServiceMonitor/PodMonitor/rule in the cluster, not only this release's
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    resources:
+      requests: {cpu: 200m, memory: 512Mi}
+      limits: {memory: 1536Mi}
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 10Gi
+
+prometheusOperator:
+  resources:
+    requests: {cpu: 20m, memory: 64Mi}
+    limits: {memory: 192Mi}
+
+kube-state-metrics:
+  resources:
+    requests: {cpu: 10m, memory: 32Mi}
+    limits: {memory: 128Mi}
+
+prometheus-node-exporter:
+  resources:
+    requests: {cpu: 10m, memory: 24Mi}
+    limits: {memory: 64Mi}
+
+grafana:
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  grafana.ini:
+    server:
+      root_url: "%(protocol)s://%(domain)s/grafana/"
+      serve_from_sub_path: true
+    analytics:
+      check_for_updates: false
+      reporting_enabled: false
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://loki.monitoring.svc.cluster.local:3100
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 384Mi}
