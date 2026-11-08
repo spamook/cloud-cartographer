@@ -313,7 +313,7 @@ def write_report(out, folder):
     if out.get("disk_usage"):
         du = out["disk_usage"]
         lines += ["", "On-disk size (du) at the end: " + ", ".join(f"{k} {fmt(v, ' MiB', mib)}" for k, v in du.items())]
-    (folder / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (folder / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
 
 def write_samples(out, folder):
@@ -324,7 +324,7 @@ def write_samples(out, folder):
             for ts, v in out["samples"][name][kind]:
                 by_ts.setdefault(ts, {})[f"{name}_{kind}"] = v
     with open(folder / "samples.csv", "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, lineterminator="\n")
         cols = [f"{n}_{k}" for n in names for k in ("cpu", "mem")]
         w.writerow(["time"] + cols)
         for ts in sorted(by_ts):
@@ -362,7 +362,7 @@ def main():
     folder.mkdir(parents=True, exist_ok=True)
     write_samples(out, folder)
     out.pop("samples")
-    (folder / "summary.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
+    (folder / "summary.json").write_text(json.dumps(out, indent=2), encoding="utf-8", newline="\n")
     write_report(out, folder)
     # the Windows console is not UTF-8 by default
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
