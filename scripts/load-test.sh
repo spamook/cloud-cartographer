@@ -9,7 +9,7 @@
 # started as separate processes.
 source "$(dirname "$0")/lib.sh"
 use_cluster
-NAME=${1:?run name, e.g. 03-app}
+NAME=${1:?run name, e.g. 04-app}
 WORKERS=${2:-4}
 export CC_STEPS=${CC_STEPS:-100,250,500,1000,1500}
 export CC_STEP_SECONDS=${CC_STEP_SECONDS:-600}

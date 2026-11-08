@@ -37,11 +37,11 @@ Three environments per provider, laid out as in the [provider comparison](2-prov
 | `tools` node | 2 vCPU, 4 GB | Argo CD (~0.5 GB), ExternalDNS, the load balancer controller, cluster autoscaler, External Secrets (~0.15 GB), cert-manager. CI jobs run on a separate Spot node that exists only while jobs run |
 | Prod database | 2 vCPU burstable, 4 GB Multi-AZ / 1 vCPU, 3.75 GB HA | The local PostgreSQL handled ~2,900 TPS (pgbench, 16 clients) on 2 cores. The app needs a small fraction of that. Google's shared-core instances have no SLA, so prod uses a dedicated vCPU |
 | Prometheus volume | 50 GB | 30 days × ~5,000 samples/s × 1–2 bytes per sample ≈ 13–26 GB, plus WAL and headroom |
-| Logs | 2 GB/day received, ~8× compression, kept 365 days → ~91 GB in the bucket | Loki's ingestion rate under load, scaled to the prod request rate |
-| Internet egress | 1,000 GB/month | Bytes per session × sessions per month at a peak of 1,000 concurrent users with a daily traffic curve |
+| Logs | 2 GB/day received, ~8× compression, kept 365 days → ~91 GB in the bucket | **Assumption until the app run**: ~250 bytes of access and app log per request at ~100 requests/s on average. Loki's compression is measured in [03-log-volume](../measurements/03-log-volume/summary.md) |
+| Internet egress | 1,000 GB/month | **Assumption until the app run**: ~1 MB per user session (first page load ~0.6 MB, API calls ~0.4 MB) × ~1 million sessions a month (peak of 1,000 simultaneous users, ~250 on average over the day, 10-minute sessions) |
 
-These are the parameters at the top of `bom.toml`. When the measurements of the sample app under
-load change them, the tables below are regenerated.
+These are the parameters at the top of `bom.toml`. The two assumptions are replaced by the measured
+values of the sample app under load, and the tables below are regenerated.
 
 ## Results
 
@@ -311,8 +311,8 @@ line items. Together the transfer lines are about 15–25% of the prod bill here
 
 ## Recommendation
 
-Both providers fit the requirements at a similar price, roughly $900–1,050 a month on demand and
-$700–850 optimised.
+Both providers fit the requirements at a similar price, roughly $920–1,050 a month on demand and
+$680–820 optimised.
 
 - **Google Cloud is cheaper for this design:**
   - one free cluster;

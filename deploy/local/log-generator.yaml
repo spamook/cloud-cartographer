@@ -1,0 +1,50 @@
+# Writes JSON access-log lines to stdout at a fixed rate (~300 lines/s, ~50 KB/s, ~4 GB/day).
+# Used by scripts/log-benchmark.sh to measure what Loki and Alloy need per MB/s of logs and how
+# well Loki compresses them.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-generator
+  namespace: app
+  labels:
+    app.kubernetes.io/name: log-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: log-generator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: log-generator
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: generator
+          image: busybox:1.37
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                n=0
+                while [ $n -lt 30 ]; do
+                  i=$((i + 1)); n=$((n + 1))
+                  printf '{"time":"%s","level":"info","method":"GET","path":"/api/items/%d","status":%d,"bytes":%d,"duration_ms":%d,"user":"u%d","request_id":"%08x"}\n' \
+                    "$ts" $((i % 500)) $((i % 50 == 0 ? 404 : 200)) $((i % 4000 + 200)) $((i % 37 + 3)) $((i % 1000)) "$i"
+                done
+                usleep 100000
+              done
+          resources:
+            requests: {cpu: 50m, memory: 16Mi}
+            limits: {cpu: 500m, memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]

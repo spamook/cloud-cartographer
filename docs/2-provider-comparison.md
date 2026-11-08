@@ -68,9 +68,9 @@ Any two of them can run the design. AWS and Google Cloud were chosen for these r
 | Always free (relevant here) | 100 GB/month internet egress, aggregated across the organisation; CloudWatch basic metrics; ACM public certificates; budget alerts | **GKE free tier: $74.40/month, one zonal (or Autopilot) cluster per billing account, so the test cluster's fee is free for good**. Also: Artifact Registry 0.5 GB, Cloud Logging 50 GiB per project/month, 6 Secret Manager versions, 200 GiB/month Standard Tier egress. The e2-micro and 5 GB Cloud Storage are free only in US regions, not in Finland |
 | Kubernetes | No free tier for EKS | Zonal cluster fee covered (above). The regional prod cluster pays $0.10/h |
 
-The credits pay for the first days of a migration, not for the setup. This design costs ~$30 a day
-on AWS and ~$25–30 on Google Cloud, so the AWS credit lasts about a week and the Google credit
-about 10 days. Only the permanent offers lower the steady cost: Google's free zonal cluster is worth
+The credits pay for the first days of a migration, not for the setup. This design costs ~$35 a day
+on AWS and ~$30 on Google Cloud, so the AWS credit lasts about a week and the Google credit about
+10 days. Only the permanent offers lower the steady cost: Google's free zonal cluster is worth
 $73 a month, and AWS's free 100 GB of egress is worth $9.
 
 ## Pricing models

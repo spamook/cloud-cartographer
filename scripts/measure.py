@@ -316,6 +316,20 @@ def write_report(out, folder):
     if out.get("disk_usage"):
         du = out["disk_usage"]
         lines += ["", "On-disk size (du) at the end: " + ", ".join(f"{k} {fmt(v, ' MiB', mib)}" for k, v in du.items())]
+
+    # what one unit of traffic costs: the numbers that scale the baseline to other loads
+    rps = e["requests_per_s"]["avg"] or 0
+    if rps >= 1:
+        lines += ["", f"## Cost per unit of traffic (at {rps:,.1f} requests/s)", "",
+                  "| Component | CPU per 100 requests/s | Network out per request |", "|---|---|---|"]
+        for name in ("traefik", "frontend", "backend", "postgres", "loki", "alloy", "prometheus"):
+            c = out["components"].get(name)
+            if not c or c["cpu_cores"]["avg"] is None:
+                continue
+            lines.append(f"| {name} | {fmt(c['cpu_cores']['avg'] / rps * 100, ' m', 0.001, 0)} "
+                         f"| {fmt((c['net_tx_bytes_per_s']['avg'] or 0) / rps, ' B', 1, 0)} |")
+        lines += ["", f"- Egress per request: {fmt((e['bytes_out_per_s']['avg'] or 0) / rps, ' B', 1, 0)}; "
+                  f"log bytes per request: {fmt((st['loki_ingested_bytes'] or 0) / (e['requests'] or 1), ' B', 1, 0)}"]
     (folder / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
 

@@ -34,7 +34,8 @@ request metrics, PostgreSQL statistics, and the on-disk size of every volume. Ea
 |---|---|
 | [01-idle](../measurements/01-idle/summary.md) | The cluster, the full monitoring stack and an empty database without traffic: the fixed cost of monitoring |
 | [02-db-benchmark](../measurements/02-db-benchmark/summary.md) | pgbench, 16 clients for 5 minutes, against a separate database: what PostgreSQL itself can do on two cores |
-| `03-…` application load steps | **Pending, the sample application could not be downloaded** (see [below](#application-under-load)) |
+| [03-log-volume](../measurements/03-log-volume/summary.md) | A generator writing ~300 JSON access-log lines per second through Alloy into Loki: the cost of logs per MB/s and Loki's real compression |
+| `04-app` application load steps | **Pending, the sample application could not be downloaded** (see [below](#application-under-load)) |
 
 ### CPU and RAM per component (idle)
 

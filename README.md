@@ -70,6 +70,8 @@ Steps:
    - Grafana: `http://<minikube ip>/grafana` (user `admin`, password in `.secrets/grafana-admin`)
    - Prometheus: `http://<minikube ip>/prometheus`
 
+   `scripts/info.sh` prints the addresses and the password.
+
 ## Measuring
 
 Measure any time window, for example the last 15 minutes:
@@ -94,7 +96,7 @@ Run the stepped load test (100 → 1,500 users, 10 minutes per step), with the a
 `CC_FRONTEND_PATHS` and `CC_API_PATHS`:
 
 ```bash
-scripts/load-test.sh 03-app
+scripts/load-test.sh 04-app
 ```
 
 The results land in `measurements/<name>/`. The Grafana dashboard *Cloud Cartographer: baseline*
