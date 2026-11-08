@@ -36,9 +36,11 @@ prices both for two environments, `test` and `prod`, sized for 1,000 simultaneou
 docs/                 the four reports
 cost-model/           prices.toml (unit prices + sources), bom.toml (what runs where), calc.py
 measurements/         one folder per measured run: summary.md, summary.json, samples.csv
-scripts/              cluster-up.sh, setup.sh, measure.py, db-benchmark.sh
+scripts/              cluster-up.sh, setup.sh, measure.py, db-benchmark.sh, load-test.sh
+load/                 Locust scenario with the user steps
 deploy/local/         namespaces, PostgreSQL, ingress for Grafana and Prometheus
 deploy/values/        Helm values: kube-prometheus-stack, Loki, Alloy, postgres-exporter, Traefik
+deploy/dashboards/    Grafana dashboard "Cloud Cartographer: baseline"
 app/                  the sample application
 ```
 
@@ -88,7 +90,15 @@ Run the database capacity test (pgbench, 16 clients, 5 minutes):
 scripts/db-benchmark.sh
 ```
 
-The results land in `measurements/<name>/`.
+Run the stepped load test (100 → 1,500 users, 10 minutes per step), with the app's routes in
+`CC_FRONTEND_PATHS` and `CC_API_PATHS`:
+
+```bash
+scripts/load-test.sh 03-app
+```
+
+The results land in `measurements/<name>/`. The Grafana dashboard *Cloud Cartographer: baseline*
+shows the same numbers live.
 
 ## Recalculating the costs
 
