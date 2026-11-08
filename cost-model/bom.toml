@@ -1,0 +1,878 @@
+# Bill of materials of the cloud design: what runs where, how much of it, and which price applies.
+# calc.py multiplies these quantities with prices.toml.
+#
+# `qty`, `hours`, `opt_qty` and `opt_hours` take a number or a formula over [params] / [derived].
+# `opt_*` fields describe the optimised scenario (spot, schedules, commitments); without them an
+# item costs the same in both scenarios.
+
+[params]
+hours = 730                 # hours in a month
+work_hours = 264            # test runs 12 h on 22 working days, scaled to zero otherwise
+ci_hours = 88               # a CI build node: ~4 h a day on working days
+autoscale_hours = 180       # prod: one extra app node during the daily peak (~6 h a day)
+
+# traffic and data volumes, from the local baseline (see docs/1-infrastructure-analysis.md)
+egress_gb_prod = 1000       # responses to users per month
+egress_gb_test = 20
+aws_free_egress_gb = 100    # AWS: first 100 GB/month to the internet are free (once per organisation)
+nat_gb_prod = 50            # updates, external APIs; images come through the S3 endpoint / Private Google Access
+nat_gb_test = 20
+inter_zone_gb_prod = 100    # load balancer → pods and backend → database across zones, scrapes
+peering_gb = 5              # Argo CD and runners talking to GitLab in the shared network
+
+# logs (Loki) and metrics (Prometheus)
+log_gb_day_prod = 2.0       # raw log lines received by Loki per day
+log_gb_day_test = 0.3
+log_compression = 8         # chunks are compressed (snappy/gzip); 6-10x is typical for text logs
+log_retention_days = 365
+loki_put_thousands_prod = 300
+loki_get_thousands_prod = 1000
+prometheus_gb_prod = 50     # 30 days of metrics + WAL, with headroom
+prometheus_gb_test = 20
+
+[derived]
+log_stored_gb_prod = "log_gb_day_prod * log_retention_days / log_compression"
+log_stored_gb_test = "log_gb_day_test * log_retention_days / log_compression"
+scheduled = "work_hours / hours"
+
+# ===================================================================== AWS
+# ---- shared account: GitLab, VPN, registry, public DNS
+[[aws]]
+env = "shared"
+category = "compute"
+item = "GitLab (self-managed CE) VM, m7g.xlarge: 4 vCPU, 16 GiB"
+qty = 1
+price = "m7g_xlarge"
+opt_price = "m7g_xlarge_sp1y"
+
+[[aws]]
+env = "shared"
+category = "compute"
+item = "WireGuard VPN, also NAT for the shared VPC, t4g.nano"
+qty = 1
+price = "t4g_nano"
+
+[[aws]]
+env = "shared"
+category = "storage"
+item = "EBS gp3: GitLab 100 GB, VPN 8 GB"
+qty = 108
+price = "ebs_gp3"
+
+[[aws]]
+env = "shared"
+category = "storage"
+item = "EBS snapshots of the GitLab disk (7 daily, incremental)"
+qty = 50
+price = "ebs_snapshot"
+
+[[aws]]
+env = "shared"
+category = "storage"
+item = "S3: GitLab backups (gitlab-backup)"
+qty = 50
+price = "s3_standard"
+
+[[aws]]
+env = "shared"
+category = "storage"
+item = "ECR: frontend and backend images, last 30 versions"
+qty = 3
+price = "ecr"
+
+[[aws]]
+env = "shared"
+category = "network"
+item = "Public IPv4 of the VPN instance"
+qty = 1
+price = "public_ipv4"
+
+[[aws]]
+env = "shared"
+category = "other"
+item = "Route 53 public hosted zone"
+qty = 1
+price = "route53_zone"
+
+[[aws]]
+env = "shared"
+category = "other"
+item = "Route 53 queries, millions per month"
+qty = 5
+price = "route53_queries"
+
+[[aws]]
+env = "shared"
+category = "other"
+item = "Domain (.com), per year / 12"
+qty = 1
+price = "domain_com"
+
+[[aws]]
+env = "shared"
+category = "other"
+item = "Secrets Manager: GitLab secrets"
+qty = 2
+price = "secrets_manager"
+
+# ---- test account
+[[aws]]
+env = "test"
+category = "kubernetes"
+item = "EKS control plane"
+qty = 1
+price = "eks_cluster"
+
+[[aws]]
+env = "test"
+category = "compute"
+item = "Node group main: t4g.medium"
+qty = 1
+price = "t4g_medium"
+opt_price = "t4g_medium_spot"
+opt_hours = "work_hours"
+
+[[aws]]
+env = "test"
+category = "compute"
+item = "Node group monitoring: t4g.large"
+qty = 1
+price = "t4g_large"
+opt_price = "t4g_large_spot"
+opt_hours = "work_hours"
+
+[[aws]]
+env = "test"
+category = "compute"
+item = "Node group tools: t4g.medium"
+qty = 1
+price = "t4g_medium"
+opt_price = "t4g_medium_spot"
+opt_hours = "work_hours"
+
+[[aws]]
+env = "test"
+category = "compute"
+item = "CI build node (GitLab runner jobs): t4g.large"
+qty = 1
+hours = "ci_hours"
+price = "t4g_large"
+opt_price = "t4g_large_spot"
+
+[[aws]]
+env = "test"
+category = "storage"
+item = "EBS gp3: node root volumes 3 × 20 GB"
+qty = 60
+opt_qty = "60 * scheduled"
+price = "ebs_gp3"
+
+[[aws]]
+env = "test"
+category = "storage"
+item = "EBS gp3: Prometheus 20 GB, Loki 10 GB, Grafana 5 GB"
+qty = "prometheus_gb_test + 15"
+price = "ebs_gp3"
+
+[[aws]]
+env = "test"
+category = "database"
+item = "RDS PostgreSQL db.t4g.small, Single-AZ"
+qty = 1
+price = "rds_t4g_small"
+opt_hours = "work_hours"
+
+[[aws]]
+env = "test"
+category = "database"
+item = "RDS gp3 storage 20 GB (backups: 7 days, inside the free allowance)"
+qty = 20
+price = "rds_gp3"
+
+[[aws]]
+env = "test"
+category = "network"
+item = "NAT gateway (optimised: NAT instance on a t4g.nano)"
+qty = 1
+price = "nat_gateway"
+opt_price = "t4g_nano"
+
+[[aws]]
+env = "test"
+category = "network"
+item = "NAT data processed, GB"
+qty = "nat_gb_test"
+price = "nat_processed"
+opt_qty = 0
+
+[[aws]]
+env = "test"
+category = "network"
+item = "Public IPv4: NAT 1, load balancer 2"
+qty = 3
+price = "public_ipv4"
+
+[[aws]]
+env = "test"
+category = "network"
+item = "ALB (external, frontend)"
+qty = 1
+price = "alb"
+
+[[aws]]
+env = "test"
+category = "network"
+item = "ALB capacity units (average)"
+qty = 0.2
+price = "alb_lcu"
+
+[[aws]]
+env = "test"
+category = "network"
+item = "NLB (internal: Grafana, Prometheus, Argo CD)"
+qty = 1
+price = "nlb"
+
+[[aws]]
+env = "test"
+category = "network"
+item = "Internet egress, GB"
+qty = "egress_gb_test"
+price = "egress"
+
+[[aws]]
+env = "test"
+category = "storage"
+item = "S3: Loki chunks and index, GB (steady state)"
+qty = "log_stored_gb_test"
+price = "s3_standard"
+
+[[aws]]
+env = "test"
+category = "storage"
+item = "S3 requests from Loki (PUT, thousands)"
+qty = 60
+price = "s3_put"
+
+[[aws]]
+env = "test"
+category = "other"
+item = "Route 53 private hosted zone"
+qty = 1
+price = "route53_zone"
+
+[[aws]]
+env = "test"
+category = "other"
+item = "Secrets Manager: database and app secrets"
+qty = 4
+price = "secrets_manager"
+
+[[aws]]
+env = "test"
+category = "other"
+item = "CloudWatch Logs (EKS control plane audit log), GB"
+qty = 1
+price = "cloudwatch_logs"
+
+# ---- prod account
+[[aws]]
+env = "prod"
+category = "kubernetes"
+item = "EKS control plane"
+qty = 1
+price = "eks_cluster"
+
+[[aws]]
+env = "prod"
+category = "compute"
+item = "Node group main: 3 × t4g.medium, one per AZ"
+qty = 3
+price = "t4g_medium"
+opt_price = "t4g_medium_sp1y"
+
+[[aws]]
+env = "prod"
+category = "compute"
+item = "Node group main: extra node at the daily peak (autoscaler)"
+qty = 1
+hours = "autoscale_hours"
+price = "t4g_medium"
+
+[[aws]]
+env = "prod"
+category = "compute"
+item = "Node group monitoring: t4g.large"
+qty = 1
+price = "t4g_large"
+opt_price = "t4g_large_sp1y"
+
+[[aws]]
+env = "prod"
+category = "compute"
+item = "Node group tools: t4g.medium"
+qty = 1
+price = "t4g_medium"
+opt_price = "t4g_medium_sp1y"
+
+[[aws]]
+env = "prod"
+category = "storage"
+item = "EBS gp3: node root volumes 5 × 20 GB"
+qty = 100
+price = "ebs_gp3"
+
+[[aws]]
+env = "prod"
+category = "storage"
+item = "EBS gp3: Prometheus (30 days), Loki 10 GB, Grafana 5 GB"
+qty = "prometheus_gb_prod + 15"
+price = "ebs_gp3"
+
+[[aws]]
+env = "prod"
+category = "database"
+item = "RDS PostgreSQL db.t4g.medium, Multi-AZ"
+qty = 1
+price = "rds_t4g_medium_maz"
+opt_price = "rds_t4g_medium_maz_ri1y"
+
+[[aws]]
+env = "prod"
+category = "database"
+item = "RDS gp3 storage 20 GB, Multi-AZ"
+qty = 20
+price = "rds_gp3_maz"
+
+[[aws]]
+env = "prod"
+category = "database"
+item = "RDS backup storage above the free allowance (30 daily backups of a ~1 GB database fit in it)"
+qty = 0
+price = "rds_backup"
+
+[[aws]]
+env = "prod"
+category = "network"
+item = "NAT gateways, one per AZ"
+qty = 3
+price = "nat_gateway"
+
+[[aws]]
+env = "prod"
+category = "network"
+item = "NAT data processed, GB"
+qty = "nat_gb_prod"
+price = "nat_processed"
+
+[[aws]]
+env = "prod"
+category = "network"
+item = "Public IPv4: NAT 3, load balancer 3"
+qty = 6
+price = "public_ipv4"
+
+[[aws]]
+env = "prod"
+category = "network"
+item = "ALB (external, frontend)"
+qty = 1
+price = "alb"
+
+[[aws]]
+env = "prod"
+category = "network"
+item = "ALB capacity units (average)"
+qty = 1
+price = "alb_lcu"
+
+[[aws]]
+env = "prod"
+category = "network"
+item = "NLB (internal: Grafana, Prometheus, Argo CD)"
+qty = 1
+price = "nlb"
+
+[[aws]]
+env = "prod"
+category = "network"
+item = "Internet egress above the free 100 GB, GB"
+qty = "max(egress_gb_prod - aws_free_egress_gb, 0)"
+price = "egress"
+
+[[aws]]
+env = "prod"
+category = "network"
+item = "Traffic between availability zones, GB"
+qty = "inter_zone_gb_prod"
+price = "inter_az"
+
+[[aws]]
+env = "prod"
+category = "network"
+item = "VPC peering to the shared VPC (GitLab), GB"
+qty = "peering_gb"
+price = "vpc_peering"
+
+[[aws]]
+env = "prod"
+category = "storage"
+item = "S3: Loki chunks and index, GB (steady state after a year)"
+qty = "log_stored_gb_prod"
+price = "s3_standard"
+
+[[aws]]
+env = "prod"
+category = "storage"
+item = "S3 PUT requests from Loki, thousands"
+qty = "loki_put_thousands_prod"
+price = "s3_put"
+
+[[aws]]
+env = "prod"
+category = "storage"
+item = "S3 GET requests from Loki queries, thousands"
+qty = "loki_get_thousands_prod"
+price = "s3_get"
+
+[[aws]]
+env = "prod"
+category = "other"
+item = "Route 53 private hosted zone"
+qty = 1
+price = "route53_zone"
+
+[[aws]]
+env = "prod"
+category = "other"
+item = "Secrets Manager: database and app secrets"
+qty = 5
+price = "secrets_manager"
+
+[[aws]]
+env = "prod"
+category = "other"
+item = "CloudWatch Logs (EKS control plane audit log), GB"
+qty = 5
+price = "cloudwatch_logs"
+
+# ===================================================================== Google Cloud
+# ---- shared project
+[[gcp]]
+env = "shared"
+category = "compute"
+item = "GitLab (self-managed CE) VM, e2-standard-4: 4 vCPU, 16 GB"
+qty = 1
+price = "e2_standard_4"
+opt_price = "e2_standard_4_cud1y"
+
+[[gcp]]
+env = "shared"
+category = "compute"
+item = "WireGuard VPN VM, e2-micro"
+qty = 1
+price = "e2_micro"
+
+[[gcp]]
+env = "shared"
+category = "storage"
+item = "Persistent disk (balanced): GitLab 100 GB, VPN 10 GB"
+qty = 110
+price = "pd_balanced"
+
+[[gcp]]
+env = "shared"
+category = "storage"
+item = "Snapshots of the GitLab disk (7 daily, incremental)"
+qty = 50
+price = "pd_snapshot"
+
+[[gcp]]
+env = "shared"
+category = "storage"
+item = "Cloud Storage: GitLab backups"
+qty = 50
+price = "gcs_standard"
+
+[[gcp]]
+env = "shared"
+category = "storage"
+item = "Artifact Registry: 3 GB of images, first 0.5 GB free"
+qty = 2.5
+price = "artifact_registry"
+
+[[gcp]]
+env = "shared"
+category = "network"
+item = "External IP of the VPN VM"
+qty = 1
+price = "external_ip"
+
+[[gcp]]
+env = "shared"
+category = "network"
+item = "Cloud NAT for the GitLab VM (gateway)"
+qty = 1
+price = "nat_vm"
+
+[[gcp]]
+env = "shared"
+category = "network"
+item = "Cloud NAT IP address"
+qty = 1
+price = "nat_ip"
+
+[[gcp]]
+env = "shared"
+category = "network"
+item = "Cloud NAT data processed, GB"
+qty = 10
+price = "nat_processed"
+
+[[gcp]]
+env = "shared"
+category = "other"
+item = "Cloud DNS public zone"
+qty = 1
+price = "dns_zone"
+
+[[gcp]]
+env = "shared"
+category = "other"
+item = "Cloud DNS queries, millions per month"
+qty = 5
+price = "dns_queries"
+
+[[gcp]]
+env = "shared"
+category = "other"
+item = "Domain (.com), per year / 12"
+qty = 1
+price = "domain_com"
+
+# ---- test project
+[[gcp]]
+env = "test"
+category = "kubernetes"
+item = "GKE Standard cluster, zonal"
+qty = 1
+price = "gke_cluster"
+
+[[gcp]]
+env = "test"
+category = "kubernetes"
+item = "GKE free tier credit (one zonal cluster per billing account)"
+qty = 1
+price = "gke_free_tier"
+
+[[gcp]]
+env = "test"
+category = "compute"
+item = "Node pool main: e2-medium (optimised: e2-standard-2 Spot)"
+qty = 1
+price = "e2_medium"
+opt_price = "e2_standard_2_spot"
+opt_hours = "work_hours"
+
+[[gcp]]
+env = "test"
+category = "compute"
+item = "Node pool monitoring: e2-standard-2"
+qty = 1
+price = "e2_standard_2"
+opt_price = "e2_standard_2_spot"
+opt_hours = "work_hours"
+
+[[gcp]]
+env = "test"
+category = "compute"
+item = "Node pool tools: e2-medium (optimised: e2-standard-2 Spot)"
+qty = 1
+price = "e2_medium"
+opt_price = "e2_standard_2_spot"
+opt_hours = "work_hours"
+
+[[gcp]]
+env = "test"
+category = "compute"
+item = "CI build node (GitLab runner jobs): e2-standard-2"
+qty = 1
+hours = "ci_hours"
+price = "e2_standard_2"
+opt_price = "e2_standard_2_spot"
+
+[[gcp]]
+env = "test"
+category = "storage"
+item = "Boot disks 3 × 30 GB (GKE default is 100 GB)"
+qty = 90
+opt_qty = "90 * scheduled"
+price = "pd_balanced"
+
+[[gcp]]
+env = "test"
+category = "storage"
+item = "Persistent disks: Prometheus 20 GB, Loki 10 GB, Grafana 5 GB"
+qty = "prometheus_gb_test + 15"
+price = "pd_balanced"
+
+[[gcp]]
+env = "test"
+category = "database"
+item = "Cloud SQL PostgreSQL db-g1-small, zonal"
+qty = 1
+price = "sql_g1_small"
+opt_hours = "work_hours"
+
+[[gcp]]
+env = "test"
+category = "database"
+item = "Cloud SQL SSD storage 20 GB"
+qty = 20
+price = "sql_ssd"
+
+[[gcp]]
+env = "test"
+category = "database"
+item = "Cloud SQL backups (7 kept), GB"
+qty = 2
+price = "sql_backup"
+
+[[gcp]]
+env = "test"
+category = "network"
+item = "Cloud NAT gateway, 3 VMs"
+qty = 3
+price = "nat_vm"
+opt_hours = "work_hours"
+
+[[gcp]]
+env = "test"
+category = "network"
+item = "Cloud NAT IP address"
+qty = 1
+price = "nat_ip"
+
+[[gcp]]
+env = "test"
+category = "network"
+item = "Cloud NAT data processed, GB"
+qty = "nat_gb_test"
+price = "nat_processed"
+
+[[gcp]]
+env = "test"
+category = "network"
+item = "Load balancer forwarding rules: external + internal"
+qty = 2
+price = "lb_rule"
+
+[[gcp]]
+env = "test"
+category = "network"
+item = "Load balancer data processed, GB"
+qty = "egress_gb_test * 2"
+price = "lb_processed"
+
+[[gcp]]
+env = "test"
+category = "network"
+item = "Internet egress (Premium Tier), GB"
+qty = "egress_gb_test"
+price = "egress"
+
+[[gcp]]
+env = "test"
+category = "storage"
+item = "Cloud Storage: Loki chunks and index, GB (steady state)"
+qty = "log_stored_gb_test"
+price = "gcs_standard"
+
+[[gcp]]
+env = "test"
+category = "storage"
+item = "Cloud Storage class A operations from Loki, thousands"
+qty = 60
+price = "gcs_class_a"
+
+[[gcp]]
+env = "test"
+category = "other"
+item = "Cloud DNS private zone"
+qty = 1
+price = "dns_zone"
+
+# ---- prod project
+[[gcp]]
+env = "prod"
+category = "kubernetes"
+item = "GKE Standard cluster, regional (3 zones)"
+qty = 1
+price = "gke_cluster"
+
+[[gcp]]
+env = "prod"
+category = "compute"
+item = "Node pool main: 3 × e2-medium, one per zone"
+qty = 3
+price = "e2_medium"
+opt_price = "e2_medium_cud1y"
+
+[[gcp]]
+env = "prod"
+category = "compute"
+item = "Node pool main: extra node at the daily peak (autoscaler)"
+qty = 1
+hours = "autoscale_hours"
+price = "e2_medium"
+
+[[gcp]]
+env = "prod"
+category = "compute"
+item = "Node pool monitoring: e2-standard-2"
+qty = 1
+price = "e2_standard_2"
+opt_price = "e2_standard_2_cud1y"
+
+[[gcp]]
+env = "prod"
+category = "compute"
+item = "Node pool tools: e2-medium"
+qty = 1
+price = "e2_medium"
+opt_price = "e2_medium_cud1y"
+
+[[gcp]]
+env = "prod"
+category = "storage"
+item = "Boot disks 5 × 30 GB"
+qty = 150
+price = "pd_balanced"
+
+[[gcp]]
+env = "prod"
+category = "storage"
+item = "Persistent disks: Prometheus (30 days), Loki 10 GB, Grafana 5 GB"
+qty = "prometheus_gb_prod + 15"
+price = "pd_balanced"
+
+[[gcp]]
+env = "prod"
+category = "database"
+item = "Cloud SQL PostgreSQL HA: 1 vCPU"
+qty = 1
+price = "sql_vcpu_ha"
+opt_price = "sql_vcpu_ha_cud1y"
+
+[[gcp]]
+env = "prod"
+category = "database"
+item = "Cloud SQL PostgreSQL HA: 3.75 GB memory"
+qty = 3.75
+price = "sql_memory_ha"
+opt_price = "sql_memory_ha_cud1y"
+
+[[gcp]]
+env = "prod"
+category = "database"
+item = "Cloud SQL SSD storage 20 GB, HA (two copies)"
+qty = 40
+price = "sql_ssd"
+
+[[gcp]]
+env = "prod"
+category = "database"
+item = "Cloud SQL backups (30 kept) and 7 days of logs, GB"
+qty = 4
+price = "sql_backup"
+
+[[gcp]]
+env = "prod"
+category = "network"
+item = "Cloud NAT gateway, 5 VMs"
+qty = 5
+price = "nat_vm"
+
+[[gcp]]
+env = "prod"
+category = "network"
+item = "Cloud NAT IP address"
+qty = 1
+price = "nat_ip"
+
+[[gcp]]
+env = "prod"
+category = "network"
+item = "Cloud NAT data processed, GB"
+qty = "nat_gb_prod"
+price = "nat_processed"
+
+[[gcp]]
+env = "prod"
+category = "network"
+item = "Load balancer forwarding rules: external + internal"
+qty = 2
+price = "lb_rule"
+
+[[gcp]]
+env = "prod"
+category = "network"
+item = "Load balancer data processed (requests + responses), GB"
+qty = "egress_gb_prod * 1.1"
+price = "lb_processed"
+
+[[gcp]]
+env = "prod"
+category = "network"
+item = "Internet egress (Premium Tier), GB"
+qty = "egress_gb_prod"
+price = "egress"
+
+[[gcp]]
+env = "prod"
+category = "network"
+item = "Traffic between zones, GB"
+qty = "inter_zone_gb_prod"
+price = "inter_zone"
+
+[[gcp]]
+env = "prod"
+category = "network"
+item = "VPC peering to the shared VPC (GitLab), GB"
+qty = "peering_gb"
+price = "vpc_peering"
+
+[[gcp]]
+env = "prod"
+category = "storage"
+item = "Cloud Storage: Loki chunks and index, GB (steady state after a year)"
+qty = "log_stored_gb_prod"
+price = "gcs_standard"
+
+[[gcp]]
+env = "prod"
+category = "storage"
+item = "Cloud Storage class A operations from Loki, thousands"
+qty = "loki_put_thousands_prod"
+price = "gcs_class_a"
+
+[[gcp]]
+env = "prod"
+category = "storage"
+item = "Cloud Storage class B operations from Loki queries, thousands"
+qty = "loki_get_thousands_prod"
+price = "gcs_class_b"
+
+[[gcp]]
+env = "prod"
+category = "other"
+item = "Cloud DNS private zone"
+qty = 1
+price = "dns_zone"
+
+[[gcp]]
+env = "prod"
+category = "other"
+item = "Secret Manager: versions above the free six"
+qty = 4
+price = "secret_manager"

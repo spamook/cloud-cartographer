@@ -1,0 +1,443 @@
+# Unit prices used by the cost model, USD, checked 2026-11-08.
+# AWS: eu-north-1 (Stockholm). Google Cloud: europe-north1 (Hamina, Finland).
+#
+# Every price comes from the provider's own pricing page or from the price data that page loads
+# (AWS: the Price List files and b0.p.awsstatic.com meteredUnitMaps; Google: the region tables
+# embedded in the pricing pages). `unit` decides how calc.py multiplies:
+#   hour      price × hours in the month × quantity
+#   gb_month  price × GB (or GiB) stored × quantity
+#   gb        price × GB transferred or processed in the month
+#   month     price × quantity
+#   year      price / 12 × quantity
+#   million   price × millions of requests/queries
+#   thousand  price × thousands of requests
+
+[meta]
+checked = "2026-11-08"
+hours_per_month = 730
+
+# ---------------------------------------------------------------- AWS, eu-north-1
+[aws.eks_cluster]
+price = 0.10
+unit = "hour"
+source = "https://aws.amazon.com/eks/pricing/"
+note = "standard support; a version in extended support costs 0.60/h"
+
+[aws.t4g_nano]
+price = 0.0043
+unit = "hour"
+source = "https://aws.amazon.com/ec2/pricing/on-demand/"
+
+[aws.t4g_medium]
+price = 0.0344
+unit = "hour"
+source = "https://aws.amazon.com/ec2/pricing/on-demand/"
+
+[aws.t4g_medium_spot]
+price = 0.0111
+unit = "hour"
+source = "https://aws.amazon.com/ec2/spot/pricing/"
+note = "current spot price, changes over time"
+
+[aws.t4g_medium_sp1y]
+price = 0.0282
+unit = "hour"
+source = "https://aws.amazon.com/savingsplans/compute-pricing/"
+note = "Compute Savings Plan, 1 year, no upfront"
+
+[aws.t4g_large]
+price = 0.0688
+unit = "hour"
+source = "https://aws.amazon.com/ec2/pricing/on-demand/"
+
+[aws.t4g_large_spot]
+price = 0.0119
+unit = "hour"
+source = "https://aws.amazon.com/ec2/spot/pricing/"
+
+[aws.t4g_large_sp1y]
+price = 0.0563
+unit = "hour"
+source = "https://aws.amazon.com/savingsplans/compute-pricing/"
+
+[aws.m7g_xlarge]
+price = 0.1734
+unit = "hour"
+source = "https://aws.amazon.com/ec2/pricing/on-demand/"
+
+[aws.m7g_xlarge_sp1y]
+price = 0.1316
+unit = "hour"
+source = "https://aws.amazon.com/savingsplans/compute-pricing/"
+
+[aws.ebs_gp3]
+price = 0.0836
+unit = "gb_month"
+source = "https://aws.amazon.com/ebs/pricing/"
+note = "3,000 IOPS and 125 MB/s included"
+
+[aws.ebs_snapshot]
+price = 0.0475
+unit = "gb_month"
+source = "https://aws.amazon.com/ebs/pricing/"
+
+[aws.rds_t4g_small]
+price = 0.033
+unit = "hour"
+source = "https://aws.amazon.com/rds/postgresql/pricing/"
+note = "Single-AZ"
+
+[aws.rds_t4g_small_ri1y]
+price = 0.0231
+unit = "hour"
+source = "https://aws.amazon.com/rds/postgresql/pricing/"
+note = "reserved instance, 1 year, no upfront"
+
+[aws.rds_t4g_medium_maz]
+price = 0.130
+unit = "hour"
+source = "https://aws.amazon.com/rds/postgresql/pricing/"
+note = "Multi-AZ, one standby"
+
+[aws.rds_t4g_medium_maz_ri1y]
+price = 0.0926
+unit = "hour"
+source = "https://aws.amazon.com/rds/postgresql/pricing/"
+note = "reserved instance, 1 year, no upfront"
+
+[aws.rds_gp3]
+price = 0.12
+unit = "gb_month"
+source = "https://aws.amazon.com/rds/postgresql/pricing/"
+note = "Single-AZ"
+
+[aws.rds_gp3_maz]
+price = 0.24
+unit = "gb_month"
+source = "https://aws.amazon.com/rds/postgresql/pricing/"
+note = "Multi-AZ (both copies)"
+
+[aws.rds_backup]
+price = 0.09
+unit = "gb_month"
+source = "https://aws.amazon.com/rds/postgresql/pricing/"
+note = "only above the free allowance (100% of provisioned storage per account and region)"
+
+[aws.nat_gateway]
+price = 0.046
+unit = "hour"
+source = "https://aws.amazon.com/vpc/pricing/"
+
+[aws.nat_processed]
+price = 0.046
+unit = "gb"
+source = "https://aws.amazon.com/vpc/pricing/"
+
+[aws.public_ipv4]
+price = 0.005
+unit = "hour"
+source = "https://aws.amazon.com/vpc/pricing/"
+note = "every public IPv4 address, in use or idle"
+
+[aws.alb]
+price = 0.02394
+unit = "hour"
+source = "https://aws.amazon.com/elasticloadbalancing/pricing/"
+
+[aws.alb_lcu]
+price = 0.0076
+unit = "hour"
+source = "https://aws.amazon.com/elasticloadbalancing/pricing/"
+note = "per LCU-hour"
+
+[aws.nlb]
+price = 0.02394
+unit = "hour"
+source = "https://aws.amazon.com/elasticloadbalancing/pricing/"
+
+[aws.nlb_lcu]
+price = 0.0057
+unit = "hour"
+source = "https://aws.amazon.com/elasticloadbalancing/pricing/"
+
+[aws.egress]
+price = 0.09
+unit = "gb"
+source = "https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer"
+note = "to the internet, first 10 TB/month; the first 100 GB/month are free"
+
+[aws.inter_az]
+price = 0.02
+unit = "gb"
+source = "https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer"
+note = "0.01 out + 0.01 in per GB crossing availability zones"
+
+[aws.vpc_peering]
+price = 0.02
+unit = "gb"
+source = "https://aws.amazon.com/vpc/pricing/"
+note = "0.01 out + 0.01 in"
+
+[aws.s3_standard]
+price = 0.023
+unit = "gb_month"
+source = "https://aws.amazon.com/s3/pricing/"
+
+[aws.s3_put]
+price = 0.005
+unit = "thousand"
+source = "https://aws.amazon.com/s3/pricing/"
+
+[aws.s3_get]
+price = 0.0004
+unit = "thousand"
+source = "https://aws.amazon.com/s3/pricing/"
+
+[aws.ecr]
+price = 0.10
+unit = "gb_month"
+source = "https://aws.amazon.com/ecr/pricing/"
+
+[aws.route53_zone]
+price = 0.50
+unit = "month"
+source = "https://aws.amazon.com/route53/pricing/"
+
+[aws.route53_queries]
+price = 0.40
+unit = "million"
+source = "https://aws.amazon.com/route53/pricing/"
+note = "public zones; queries to private zones and alias records are free"
+
+[aws.domain_com]
+price = 16.00
+unit = "year"
+source = "https://d32ze2gidvkk54.cloudfront.net/Amazon_Route_53_Domain_Registration_Pricing_20140731.pdf"
+note = "Route 53 .com registration/renewal from 2026-07-01"
+
+[aws.secrets_manager]
+price = 0.40
+unit = "month"
+source = "https://aws.amazon.com/secrets-manager/pricing/"
+note = "per secret"
+
+[aws.cloudwatch_logs]
+price = 0.54
+unit = "gb"
+source = "https://aws.amazon.com/cloudwatch/pricing/"
+note = "ingestion, standard class"
+
+[aws.client_vpn_association]
+price = 0.15
+unit = "hour"
+source = "https://aws.amazon.com/vpn/pricing/"
+
+[aws.client_vpn_connection]
+price = 0.05
+unit = "hour"
+source = "https://aws.amazon.com/vpn/pricing/"
+
+# ---------------------------------------------------------------- Google Cloud, europe-north1
+[gcp.gke_cluster]
+price = 0.10
+unit = "hour"
+source = "https://cloud.google.com/kubernetes-engine/pricing"
+note = "the free tier ($74.40/month per billing account) covers one zonal cluster"
+
+[gcp.gke_free_tier]
+price = -74.40
+unit = "month"
+source = "https://cloud.google.com/kubernetes-engine/pricing"
+note = "credit, zonal or Autopilot clusters only"
+
+[gcp.e2_micro]
+price = 0.009222195
+unit = "hour"
+source = "https://cloud.google.com/products/compute/pricing/general-purpose"
+
+[gcp.e2_medium]
+price = 0.03688878
+unit = "hour"
+source = "https://cloud.google.com/products/compute/pricing/general-purpose"
+note = "2 shared vCPUs, 4 GB"
+
+[gcp.e2_medium_cud1y]
+price = 0.023239932
+unit = "hour"
+source = "https://cloud.google.com/products/compute/pricing/general-purpose"
+note = "resource-based committed use discount, 1 year"
+
+[gcp.e2_standard_2]
+price = 0.07377756
+unit = "hour"
+source = "https://cloud.google.com/products/compute/pricing/general-purpose"
+
+[gcp.e2_standard_2_spot]
+price = 0.022332
+unit = "hour"
+source = "https://cloud.google.com/spot-vms/pricing"
+note = "current spot price"
+
+[gcp.e2_standard_2_cud1y]
+price = 0.046479864
+unit = "hour"
+source = "https://cloud.google.com/products/compute/pricing/general-purpose"
+
+[gcp.e2_standard_4]
+price = 0.14755512
+unit = "hour"
+source = "https://cloud.google.com/products/compute/pricing/general-purpose"
+
+[gcp.e2_standard_4_cud1y]
+price = 0.092959728
+unit = "hour"
+source = "https://cloud.google.com/products/compute/pricing/general-purpose"
+
+[gcp.pd_balanced]
+price = 0.11
+unit = "gb_month"
+source = "https://cloud.google.com/compute/disks-image-pricing"
+
+[gcp.pd_snapshot]
+price = 0.055
+unit = "gb_month"
+source = "https://cloud.google.com/compute/disks-image-pricing"
+
+[gcp.sql_g1_small]
+price = 0.0385
+unit = "hour"
+source = "https://cloud.google.com/sql/pricing"
+note = "shared core, 1.7 GB, no SLA (test only)"
+
+[gcp.sql_vcpu_ha]
+price = 0.0909
+unit = "hour"
+source = "https://cloud.google.com/sql/pricing"
+note = "Enterprise edition, high availability"
+
+[gcp.sql_vcpu_ha_cud1y]
+price = 0.068175
+unit = "hour"
+source = "https://cloud.google.com/sql/pricing"
+
+[gcp.sql_memory_ha]
+price = 0.0154
+unit = "hour"
+source = "https://cloud.google.com/sql/pricing"
+note = "per GB"
+
+[gcp.sql_memory_ha_cud1y]
+price = 0.01155
+unit = "hour"
+source = "https://cloud.google.com/sql/pricing"
+
+[gcp.sql_ssd]
+price = 0.187
+unit = "gb_month"
+source = "https://cloud.google.com/sql/pricing"
+note = "an HA instance pays it for both copies"
+
+[gcp.sql_backup]
+price = 0.088
+unit = "gb_month"
+source = "https://cloud.google.com/sql/pricing"
+
+[gcp.nat_vm]
+price = 0.0014
+unit = "hour"
+source = "https://cloud.google.com/nat/pricing"
+note = "per VM using the gateway"
+
+[gcp.nat_processed]
+price = 0.045
+unit = "gb"
+source = "https://cloud.google.com/nat/pricing"
+
+[gcp.nat_ip]
+price = 0.005
+unit = "hour"
+source = "https://cloud.google.com/nat/pricing"
+
+[gcp.external_ip]
+price = 0.005
+unit = "hour"
+source = "https://cloud.google.com/vpc/network-pricing#ipaddress"
+
+[gcp.lb_rule]
+price = 0.028
+unit = "hour"
+source = "https://cloud.google.com/vpc/network-pricing#lb"
+note = "forwarding rule, first five"
+
+[gcp.lb_processed]
+price = 0.009
+unit = "gb"
+source = "https://cloud.google.com/vpc/network-pricing#lb"
+note = "data processed by the load balancer, in and out"
+
+[gcp.egress]
+price = 0.12
+unit = "gb"
+source = "https://cloud.google.com/vpc/network-pricing#internet_egress"
+note = "Premium Tier to Europe, first TiB/month"
+
+[gcp.inter_zone]
+price = 0.01
+unit = "gb"
+source = "https://cloud.google.com/vpc/network-pricing"
+note = "VM to VM between zones of one region"
+
+[gcp.vpc_peering]
+price = 0.01
+unit = "gb"
+source = "https://cloud.google.com/vpc/network-pricing"
+note = "billed as traffic between zones"
+
+[gcp.gcs_standard]
+price = 0.020
+unit = "gb_month"
+source = "https://cloud.google.com/storage/pricing"
+
+[gcp.gcs_class_a]
+price = 0.005
+unit = "thousand"
+source = "https://cloud.google.com/storage/pricing"
+
+[gcp.gcs_class_b]
+price = 0.0004
+unit = "thousand"
+source = "https://cloud.google.com/storage/pricing"
+
+[gcp.artifact_registry]
+price = 0.10
+unit = "gb_month"
+source = "https://cloud.google.com/artifact-registry/pricing"
+note = "first 0.5 GB free"
+
+[gcp.dns_zone]
+price = 0.20
+unit = "month"
+source = "https://cloud.google.com/dns/pricing"
+
+[gcp.dns_queries]
+price = 0.40
+unit = "million"
+source = "https://cloud.google.com/dns/pricing"
+
+[gcp.domain_com]
+price = 16.00
+unit = "year"
+source = "https://d32ze2gidvkk54.cloudfront.net/Amazon_Route_53_Domain_Registration_Pricing_20140731.pdf"
+note = "same registrar in both cases; the domain does not depend on the hosting cloud"
+
+[gcp.secret_manager]
+price = 0.06
+unit = "month"
+source = "https://cloud.google.com/secret-manager/pricing"
+note = "per active secret version above the free six"
+
+[gcp.cloud_logging]
+price = 0.50
+unit = "gb"
+source = "https://cloud.google.com/products/observability/pricing"
+note = "first 50 GiB per project and month free"

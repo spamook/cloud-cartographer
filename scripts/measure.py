@@ -103,7 +103,7 @@ def sel(ns, pod):
     return f'namespace="{ns}",pod=~"{pod}"'
 
 
-def collect(prom, start, end):
+def collect(prom, start, end, database="app"):
     window = f"{int(end - start)}s"
     out = {"start": start, "end": end, "seconds": end - start, "components": {}, "samples": {}}
 
@@ -188,7 +188,7 @@ def collect(prom, start, end):
     }
 
     # --- the database
-    db = 'datname="app"'
+    db = f'datname="{database}"'
     tps = prom.range(f'sum(rate(pg_stat_database_xact_commit{{{db}}}[1m]) + rate(pg_stat_database_xact_rollback{{{db}}}[1m]))', start, end)
     calls = prom.value(f'sum(increase(pg_stat_statements_calls_total{{{db}}}[{window}]))', end)
     secs = prom.value(f'sum(increase(pg_stat_statements_seconds_total{{{db}}}[{window}]))', end)
@@ -339,6 +339,7 @@ def main():
     ap.add_argument("--end")
     ap.add_argument("--last", help="window ending now, e.g. 15m")
     ap.add_argument("--note", help="one line printed under the title")
+    ap.add_argument("--db", default="app", help="database whose statistics to report (default: app)")
     ap.add_argument("--no-du", action="store_true", help="skip the on-disk size probes")
     args = ap.parse_args()
 
@@ -353,7 +354,7 @@ def main():
                             text=True, check=True).stdout.strip()
         url = f"http://{ip}/prometheus"
 
-    out = collect(Prometheus(url), start, end)
+    out = collect(Prometheus(url), start, end, args.db)
     out["name"], out["note"] = args.name, args.note
     if not args.no_du:
         out["disk_usage"] = disk_usage()
