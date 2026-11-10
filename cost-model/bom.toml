@@ -11,17 +11,27 @@ work_hours = 264            # test runs 12 h on 22 working days, scaled to zero 
 ci_hours = 88               # a CI build node: ~4 h a day on working days
 autoscale_hours = 180       # prod: one extra app node during the daily peak (~6 h a day)
 
-# traffic and data volumes, from the local baseline (see docs/1-infrastructure-analysis.md)
-egress_gb_prod = 1000       # responses to users per month
+# Traffic of the app, measured per hour at 1,000 simultaneous users in the load test
+# (measurements/04-app/step-1000, docs/1-infrastructure-analysis.md). A Locust user acts every
+# 1-5 s, more often than a person, so these are upper bounds per user.
+egress_gb_per_peak_hour = 4.1   # responses to users (network level; 3.65 GB/h of HTTP bytes)
+ingress_gb_per_peak_hour = 1.0  # requests from users
+app_log_gb_per_peak_hour = 0.38 # nginx and backend lines into Loki. Traefik's access log (the load
+                                # balancer replaces it) and minikube's CoreDNS query log are left out
+db_gb_per_peak_hour = 1.1       # backend <-> PostgreSQL, both directions
+scrape_gb_per_hour = 0.36       # metrics into Prometheus: 0.18 GB/h measured on one node, x4 nodes, /2 for 30 s scrapes
+# How long the peak lasts: 1,000 users ~6 h a day (the hours of autoscale_hours), a fifth of that
+# in the other hours
+peak_hours = 180
+offpeak_share = 0.2
+
 egress_gb_test = 20
 aws_free_egress_gb = 100    # AWS: first 100 GB/month to the internet are free (once per organisation)
 nat_gb_prod = 50            # updates, external APIs; images come through the S3 endpoint / Private Google Access
 nat_gb_test = 20
-inter_zone_gb_prod = 100    # load balancer → pods and backend → database across zones, scrapes
 peering_gb = 5              # Argo CD and runners talking to GitLab in the shared network
 
 # logs (Loki) and metrics (Prometheus)
-log_gb_day_prod = 2.0       # raw log lines received by Loki per day
 log_gb_day_test = 0.3
 log_compression = 6         # measured (03-log-volume): 6.1x mean per chunk, 8.9x over all stored bytes
 log_retention_days = 365
@@ -31,6 +41,16 @@ prometheus_gb_prod = 50     # 30 days of metrics + WAL, with headroom
 prometheus_gb_test = 20
 
 [derived]
+full_load_hours = "peak_hours + (hours - peak_hours) * offpeak_share"
+egress_gb_prod = "egress_gb_per_peak_hour * full_load_hours"
+ingress_gb_prod = "ingress_gb_per_peak_hour * full_load_hours"
+log_gb_day_prod = "app_log_gb_per_peak_hour * full_load_hours / (hours / 24)"
+# Two of three backend pods and nodes sit in another zone than the database primary and the
+# monitoring node. The load balancer -> pod hop is priced by the load balancer (capacity units /
+# data processing) and is not added here.
+inter_zone_gb_prod = "(db_gb_per_peak_hour * full_load_hours + scrape_gb_per_hour * hours) * 2 / 3"
+# ALB capacity units: processed bytes dominate (1 LCU = 1 GB per hour for instance and IP targets)
+alb_lcu_prod = "max(1, (egress_gb_prod + ingress_gb_prod) / hours)"
 log_stored_gb_prod = "log_gb_day_prod * log_retention_days / log_compression"
 log_stored_gb_test = "log_gb_day_test * log_retention_days / log_compression"
 scheduled = "work_hours / hours"
@@ -382,8 +402,8 @@ price = "alb"
 [[aws]]
 env = "prod"
 category = "network"
-item = "ALB capacity units (average)"
-qty = 1
+item = "ALB capacity units (average, from the measured bytes)"
+qty = "alb_lcu_prod"
 price = "alb_lcu"
 
 [[aws]]
@@ -818,7 +838,7 @@ price = "lb_rule"
 env = "prod"
 category = "network"
 item = "Load balancer data processed (requests + responses), GB"
-qty = "egress_gb_prod * 1.1"
+qty = "egress_gb_prod + ingress_gb_prod"
 price = "lb_processed"
 
 [[gcp]]

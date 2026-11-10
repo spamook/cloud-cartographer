@@ -45,12 +45,12 @@ aws,prod,network,"NAT gateways, one per AZ",3.0,hour,0.046,100.74,100.74,nat_gat
 aws,prod,network,"NAT data processed, GB",50.0,gb,0.046,2.3,2.3,nat_processed,nat_processed,https://aws.amazon.com/vpc/pricing/
 aws,prod,network,"Public IPv4: NAT 3, load balancer 3",6.0,hour,0.005,21.9,21.9,public_ipv4,public_ipv4,https://aws.amazon.com/vpc/pricing/
 aws,prod,network,"ALB (external, frontend)",1.0,hour,0.02394,17.48,17.48,alb,alb,https://aws.amazon.com/elasticloadbalancing/pricing/
-aws,prod,network,ALB capacity units (average),1.0,hour,0.0076,5.55,5.55,alb_lcu,alb_lcu,https://aws.amazon.com/elasticloadbalancing/pricing/
+aws,prod,network,"ALB capacity units (average, from the measured bytes)",2.026027397260274,hour,0.0076,11.24,11.24,alb_lcu,alb_lcu,https://aws.amazon.com/elasticloadbalancing/pricing/
 aws,prod,network,"NLB (internal: Grafana, Prometheus, Argo CD)",1.0,hour,0.02394,17.48,17.48,nlb,nlb,https://aws.amazon.com/elasticloadbalancing/pricing/
-aws,prod,network,"Internet egress above the free 100 GB, GB",900.0,gb,0.09,81.0,81.0,egress,egress,https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer
-aws,prod,network,"Traffic between availability zones, GB",100.0,gb,0.02,2.0,2.0,inter_az,inter_az,https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer
+aws,prod,network,"Internet egress above the free 100 GB, GB",1089.0,gb,0.09,98.01,98.01,egress,egress,https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer
+aws,prod,network,"Traffic between availability zones, GB",387.8666666666666,gb,0.02,7.76,7.76,inter_az,inter_az,https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer
 aws,prod,network,"VPC peering to the shared VPC (GitLab), GB",5.0,gb,0.02,0.1,0.1,vpc_peering,vpc_peering,https://aws.amazon.com/vpc/pricing/
-aws,prod,storage,"S3: Loki chunks and index, GB (steady state after a year)",121.66666666666667,gb_month,0.023,2.8,2.8,s3_standard,s3_standard,https://aws.amazon.com/s3/pricing/
+aws,prod,storage,"S3: Loki chunks and index, GB (steady state after a year)",220.4,gb_month,0.023,5.07,5.07,s3_standard,s3_standard,https://aws.amazon.com/s3/pricing/
 aws,prod,storage,"S3 PUT requests from Loki, thousands",300.0,thousand,0.005,1.5,1.5,s3_put,s3_put,https://aws.amazon.com/s3/pricing/
 aws,prod,storage,"S3 GET requests from Loki queries, thousands",1000.0,thousand,0.0004,0.4,0.4,s3_get,s3_get,https://aws.amazon.com/s3/pricing/
 aws,prod,other,Route 53 private hosted zone,1.0,month,0.5,0.5,0.5,route53_zone,route53_zone,https://aws.amazon.com/route53/pricing/
@@ -104,11 +104,11 @@ gcp,prod,network,"Cloud NAT gateway, 5 VMs",5.0,hour,0.0014,5.11,5.11,nat_vm,nat
 gcp,prod,network,Cloud NAT IP address,1.0,hour,0.005,3.65,3.65,nat_ip,nat_ip,https://cloud.google.com/nat/pricing
 gcp,prod,network,"Cloud NAT data processed, GB",50.0,gb,0.045,2.25,2.25,nat_processed,nat_processed,https://cloud.google.com/nat/pricing
 gcp,prod,network,Load balancer forwarding rules: external + internal,2.0,hour,0.028,40.88,40.88,lb_rule,lb_rule,https://cloud.google.com/vpc/network-pricing#lb
-gcp,prod,network,"Load balancer data processed (requests + responses), GB",1100.0,gb,0.009,9.9,9.9,lb_processed,lb_processed,https://cloud.google.com/vpc/network-pricing#lb
-gcp,prod,network,"Internet egress (Premium Tier), GB",1000.0,gb,0.12,120.0,120.0,egress,egress,https://cloud.google.com/vpc/network-pricing#internet_egress
-gcp,prod,network,"Traffic between zones, GB",100.0,gb,0.01,1.0,1.0,inter_zone,inter_zone,https://cloud.google.com/vpc/network-pricing
+gcp,prod,network,"Load balancer data processed (requests + responses), GB",1479.0,gb,0.009,13.31,13.31,lb_processed,lb_processed,https://cloud.google.com/vpc/network-pricing#lb
+gcp,prod,network,"Internet egress (Premium Tier), GB",1189.0,gb,0.12,142.68,142.68,egress,egress,https://cloud.google.com/vpc/network-pricing#internet_egress
+gcp,prod,network,"Traffic between zones, GB",387.8666666666666,gb,0.01,3.88,3.88,inter_zone,inter_zone,https://cloud.google.com/vpc/network-pricing
 gcp,prod,network,"VPC peering to the shared VPC (GitLab), GB",5.0,gb,0.01,0.05,0.05,vpc_peering,vpc_peering,https://cloud.google.com/vpc/network-pricing
-gcp,prod,storage,"Cloud Storage: Loki chunks and index, GB (steady state after a year)",121.66666666666667,gb_month,0.02,2.43,2.43,gcs_standard,gcs_standard,https://cloud.google.com/storage/pricing
+gcp,prod,storage,"Cloud Storage: Loki chunks and index, GB (steady state after a year)",220.4,gb_month,0.02,4.41,4.41,gcs_standard,gcs_standard,https://cloud.google.com/storage/pricing
 gcp,prod,storage,"Cloud Storage class A operations from Loki, thousands",300.0,thousand,0.005,1.5,1.5,gcs_class_a,gcs_class_a,https://cloud.google.com/storage/pricing
 gcp,prod,storage,"Cloud Storage class B operations from Loki queries, thousands",1000.0,thousand,0.0004,0.4,0.4,gcs_class_b,gcs_class_b,https://cloud.google.com/storage/pricing
 gcp,prod,other,Cloud DNS private zone,1.0,month,0.2,0.2,0.2,dns_zone,dns_zone,https://cloud.google.com/dns/pricing

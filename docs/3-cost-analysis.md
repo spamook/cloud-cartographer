@@ -32,16 +32,18 @@ Three environments per provider, laid out as in the [provider comparison](2-prov
 
 | Item | Size | Why |
 |---|---|---|
-| `main` nodes | 2 vCPU, 4 GB (t4g.medium / e2-medium) | The app (frontend + backend) is small. Three nodes give one per zone for HA, and the autoscaler adds a fourth at the daily peak |
+| `main` nodes | 2 vCPU, 4 GB (t4g.medium / e2-medium) | Measured at 1,000 users: the backend used 1.2 cores, almost all of it bcrypt at logins, and the frontend 0.09 cores, both under 25 MiB of RAM. With the DaemonSets that is ~1.9 vCPU at the peak. Three nodes give one per zone for HA, and the autoscaler adds a fourth at the daily peak. The burstable instances' credits cover a 6-hour peak: t4g.medium earns 0.4 vCPU per node, e2-medium sustains 1 vCPU |
 | `monitoring` node | 2 vCPU, 8 GB (t4g.large / e2-standard-2) | Measured idle footprint: Prometheus 290 MiB, Grafana 435 MiB, Loki 160 MiB, exporters ~70 MiB. Prometheus memory grows with series (×2–3 for a 5-node cluster), so 8 GB leaves headroom |
 | `tools` node | 2 vCPU, 4 GB | Argo CD (~0.5 GB), ExternalDNS, the load balancer controller, cluster autoscaler, External Secrets (~0.15 GB), cert-manager. CI jobs run on a separate Spot node that exists only while jobs run |
-| Prod database | 2 vCPU burstable, 4 GB Multi-AZ / 1 vCPU, 3.75 GB HA | The local PostgreSQL handled ~2,900 TPS (pgbench, 16 clients) on 2 cores. The app needs a small fraction of that. Google's shared-core instances have no SLA, so prod uses a dedicated vCPU |
+| Prod database | 2 vCPU burstable, 4 GB Multi-AZ / 1 vCPU, 3.75 GB HA | The local PostgreSQL handled ~2,900 TPS (pgbench, 16 clients) on 2 cores. The app at 1,000 users needed 430 transactions/s at 0.07 ms each, but 0.56 cores. Most of that went to ~50 new connections a second, because the backend's pool keeps only 2 idle connections ([analysis](1-infrastructure-analysis.md#2-performance-bottlenecks)). With that fixed in the app, a fraction of a core is left. Google's shared-core instances have no SLA, so prod uses a dedicated vCPU |
 | Prometheus volume | 50 GB | 30 days × ~5,000 samples/s × 1–2 bytes per sample ≈ 13–26 GB, plus WAL and headroom |
-| Logs | 2 GB/day received, 6× compression, kept 365 days → ~122 GB in the bucket | **Volume is an assumption until the app run**: ~250 bytes of access and app log per request at ~100 requests/s on average. **Compression is measured** in [03-log-volume](../measurements/03-log-volume/summary.md): 6.1× mean per chunk, 8.9× over all stored bytes; the model uses the lower value |
-| Internet egress | 1,000 GB/month | **Assumption until the app run**: ~1 MB per user session (first page load ~0.6 MB, API calls ~0.4 MB) × ~1 million sessions a month (peak of 1,000 simultaneous users, ~250 on average over the day, 10-minute sessions) |
+| Traffic profile | 290 full-load hours a month | 1,000 users for ~6 h a day (180 h, the hours of the autoscaler's extra node) and a fifth of that the rest of the time: 180 + 550 × 0.2 = 290 h. A Locust user acts every 1–5 s, more often than a person, so the volumes below are upper bounds |
+| Internet egress | 1,189 GB/month | **Measured**: 4.1 GB/h at 1,000 users, 3.7 MB per user-hour ([04-app](../measurements/04-app/step-1000/summary.md)). 95% of it is the uncompressed 232 KB JS bundle on the 30% of visits with an empty cache; gzip would cut egress by ~57% (see [alternatives](#alternatives-that-change-the-total)) |
+| Logs | 3.6 GB/day received, 6× compression, kept 365 days → ~220 GB in the bucket after a year | **Volume measured**: nginx and the backend wrote 0.38 GB/h of log lines at 1,000 users. Traefik's access log is not counted, because in the cloud the load balancer replaces Traefik. Neither is Minikube's CoreDNS query log, which managed clusters don't write. **Compression measured** in [03-log-volume](../measurements/03-log-volume/summary.md): 6.1× mean per chunk, 8.9× over all stored bytes; the model uses the lower value |
+| Traffic between zones | 388 GB/month | **Measured flows**: backend ↔ database 1.1 GB/h at the peak, and metrics scrapes 0.36 GB/h (0.18 measured on one node, ×4 nodes, ÷2 for 30 s scrapes). Two thirds of each cross zones |
 
-These are the parameters at the top of `bom.toml`. The two assumptions are replaced by the measured
-values of the sample app under load, and the tables below are regenerated.
+These are the parameters at the top of `bom.toml`: the per-hour values measured at 1,000 users and
+the traffic profile that spreads them over a month.
 
 ## Results
 
@@ -52,10 +54,10 @@ values of the sample app under load, and the tables below are regenerated.
 
 | Provider | Scenario | Shared | Test | Prod | **Total / month** | Per year |
 |---|---|---|---|---|---|---|
-| AWS (eu-north-1) | On-demand | $151 | $301 | $602 | **$1,053** | $12,639 |
-| AWS (eu-north-1) | Optimised | $120 | $154 | $547 | **$822** | $9,862 |
-| Google Cloud (europe-north1) | On-demand | $143 | $212 | $569 | **$924** | $11,085 |
-| Google Cloud (europe-north1) | Optimised | $103 | $91 | $482 | **$676** | $8,115 |
+| AWS (eu-north-1) | On-demand | $151 | $301 | $633 | **$1,084** | $13,008 |
+| AWS (eu-north-1) | Optimised | $120 | $154 | $578 | **$853** | $10,231 |
+| Google Cloud (europe-north1) | On-demand | $143 | $212 | $600 | **$955** | $11,457 |
+| Google Cloud (europe-north1) | Optimised | $103 | $91 | $513 | **$707** | $8,486 |
 
 *Optimised*: test on Spot capacity and scaled to zero outside working hours (264 of 730 h), 1-year commitments for the always-on prod nodes, the prod database and the GitLab VM, a NAT instance instead of a NAT gateway in AWS test.
 
@@ -63,25 +65,25 @@ values of the sample app under load, and the tables below are regenerated.
 
 | Category | Shared | Test | Prod | Total | Share |
 |---|---|---|---|---|---|
-| compute | $130 | $107 | $157 | $393 | 37% |
-| kubernetes | $0.00 | $73 | $73 | $146 | 14% |
+| compute | $130 | $107 | $157 | $393 | 36% |
+| kubernetes | $0.00 | $73 | $73 | $146 | 13% |
 | database | $0.00 | $26 | $100 | $126 | 12% |
-| storage | $13 | $8.66 | $18 | $40 | 4% |
-| network | $3.65 | $83 | $249 | $336 | 32% |
+| storage | $13 | $8.66 | $21 | $42 | 4% |
+| network | $3.65 | $83 | $277 | $364 | 34% |
 | other | $4.63 | $2.64 | $5.20 | $12 | 1% |
-| **total** | $151 | $301 | $602 | **$1,053** | 100% |
+| **total** | $151 | $301 | $633 | **$1,084** | 100% |
 
 ### Google Cloud (europe-north1): by component (on-demand)
 
 | Category | Shared | Test | Prod | Total | Share |
 |---|---|---|---|---|---|
-| compute | $114 | $114 | $168 | $397 | 43% |
+| compute | $114 | $114 | $168 | $397 | 42% |
 | kubernetes | $0.00 | $0.00 | $73 | $73 | 8% |
 | database | $0.00 | $32 | $116 | $148 | 16% |
-| storage | $16 | $14 | $28 | $58 | 6% |
-| network | $8.77 | $51 | $183 | $243 | 26% |
+| storage | $16 | $14 | $30 | $60 | 6% |
+| network | $8.77 | $51 | $212 | $272 | 28% |
 | other | $3.53 | $0.20 | $0.44 | $4.17 | 0% |
-| **total** | $143 | $212 | $569 | **$924** | 100% |
+| **total** | $143 | $212 | $600 | **$955** | 100% |
 
 ### AWS (eu-north-1): line items
 
@@ -133,12 +135,12 @@ values of the sample app under load, and the tables below are regenerated.
 | prod | network | NAT data processed, GB | 50 | [$0.046/GB](https://aws.amazon.com/vpc/pricing/) | $2.30 | $2.30 |
 | prod | network | Public IPv4: NAT 3, load balancer 3 | 6 | [$0.005/h](https://aws.amazon.com/vpc/pricing/) | $22 | $22 |
 | prod | network | ALB (external, frontend) | 1 | [$0.02394/h](https://aws.amazon.com/elasticloadbalancing/pricing/) | $17 | $17 |
-| prod | network | ALB capacity units (average) | 1 | [$0.0076/h](https://aws.amazon.com/elasticloadbalancing/pricing/) | $5.55 | $5.55 |
+| prod | network | ALB capacity units (average, from the measured bytes) | 2.03 | [$0.0076/h](https://aws.amazon.com/elasticloadbalancing/pricing/) | $11 | $11 |
 | prod | network | NLB (internal: Grafana, Prometheus, Argo CD) | 1 | [$0.02394/h](https://aws.amazon.com/elasticloadbalancing/pricing/) | $17 | $17 |
-| prod | network | Internet egress above the free 100 GB, GB | 900 | [$0.09/GB](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer) | $81 | $81 |
-| prod | network | Traffic between availability zones, GB | 100 | [$0.02/GB](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer) | $2.00 | $2.00 |
+| prod | network | Internet egress above the free 100 GB, GB | 1,089 | [$0.09/GB](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer) | $98 | $98 |
+| prod | network | Traffic between availability zones, GB | 387.87 | [$0.02/GB](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer) | $7.76 | $7.76 |
 | prod | network | VPC peering to the shared VPC (GitLab), GB | 5 | [$0.02/GB](https://aws.amazon.com/vpc/pricing/) | $0.10 | $0.10 |
-| prod | storage | S3: Loki chunks and index, GB (steady state after a year) | 121.67 | [$0.023/GB-mo](https://aws.amazon.com/s3/pricing/) | $2.80 | $2.80 |
+| prod | storage | S3: Loki chunks and index, GB (steady state after a year) | 220.4 | [$0.023/GB-mo](https://aws.amazon.com/s3/pricing/) | $5.07 | $5.07 |
 | prod | storage | S3 PUT requests from Loki, thousands | 300 | [$0.005/1000](https://aws.amazon.com/s3/pricing/) | $1.50 | $1.50 |
 | prod | storage | S3 GET requests from Loki queries, thousands | 1,000 | [$0.0004/1000](https://aws.amazon.com/s3/pricing/) | $0.40 | $0.40 |
 | prod | other | Route 53 private hosted zone | 1 | [$0.5/mo](https://aws.amazon.com/route53/pricing/) | $0.50 | $0.50 |
@@ -197,11 +199,11 @@ values of the sample app under load, and the tables below are regenerated.
 | prod | network | Cloud NAT IP address | 1 | [$0.005/h](https://cloud.google.com/nat/pricing) | $3.65 | $3.65 |
 | prod | network | Cloud NAT data processed, GB | 50 | [$0.045/GB](https://cloud.google.com/nat/pricing) | $2.25 | $2.25 |
 | prod | network | Load balancer forwarding rules: external + internal | 2 | [$0.028/h](https://cloud.google.com/vpc/network-pricing#lb) | $41 | $41 |
-| prod | network | Load balancer data processed (requests + responses), GB | 1,100 | [$0.009/GB](https://cloud.google.com/vpc/network-pricing#lb) | $9.90 | $9.90 |
-| prod | network | Internet egress (Premium Tier), GB | 1,000 | [$0.12/GB](https://cloud.google.com/vpc/network-pricing#internet_egress) | $120 | $120 |
-| prod | network | Traffic between zones, GB | 100 | [$0.01/GB](https://cloud.google.com/vpc/network-pricing) | $1.00 | $1.00 |
+| prod | network | Load balancer data processed (requests + responses), GB | 1,479 | [$0.009/GB](https://cloud.google.com/vpc/network-pricing#lb) | $13 | $13 |
+| prod | network | Internet egress (Premium Tier), GB | 1,189 | [$0.12/GB](https://cloud.google.com/vpc/network-pricing#internet_egress) | $143 | $143 |
+| prod | network | Traffic between zones, GB | 387.87 | [$0.01/GB](https://cloud.google.com/vpc/network-pricing) | $3.88 | $3.88 |
 | prod | network | VPC peering to the shared VPC (GitLab), GB | 5 | [$0.01/GB](https://cloud.google.com/vpc/network-pricing) | $0.05 | $0.05 |
-| prod | storage | Cloud Storage: Loki chunks and index, GB (steady state after a year) | 121.67 | [$0.02/GB-mo](https://cloud.google.com/storage/pricing) | $2.43 | $2.43 |
+| prod | storage | Cloud Storage: Loki chunks and index, GB (steady state after a year) | 220.4 | [$0.02/GB-mo](https://cloud.google.com/storage/pricing) | $4.41 | $4.41 |
 | prod | storage | Cloud Storage class A operations from Loki, thousands | 300 | [$0.005/1000](https://cloud.google.com/storage/pricing) | $1.50 | $1.50 |
 | prod | storage | Cloud Storage class B operations from Loki queries, thousands | 1,000 | [$0.0004/1000](https://cloud.google.com/storage/pricing) | $0.40 | $0.40 |
 | prod | other | Cloud DNS private zone | 1 | [$0.2/mo](https://cloud.google.com/dns/pricing) | $0.20 | $0.20 |
@@ -209,18 +211,18 @@ values of the sample app under load, and the tables below are regenerated.
 
 ### Hidden cost: log accumulation over the first year (prod)
 
-Loki receives 2 GB of log lines a day and stores them compressed (~6×); logs are kept 365 days, so the bucket grows every month until the first deletions start in month 13.
+Loki receives 3.62301 GB of log lines a day and stores them compressed (~6×); logs are kept 365 days, so the bucket grows every month until the first deletions start in month 13.
 
 | Month | Stored in the bucket | AWS S3 Standard | Cloud Storage Standard |
 |---|---|---|---|
-| 1 | 10 GB | $0.23 | $0.20 |
-| 2 | 20 GB | $0.47 | $0.41 |
-| 3 | 30 GB | $0.70 | $0.61 |
-| 6 | 61 GB | $1.40 | $1.22 |
-| 9 | 91 GB | $2.10 | $1.82 |
-| 12 | 122 GB | $2.80 | $2.43 |
+| 1 | 18 GB | $0.42 | $0.37 |
+| 2 | 37 GB | $0.84 | $0.73 |
+| 3 | 55 GB | $1.27 | $1.10 |
+| 6 | 110 GB | $2.53 | $2.20 |
+| 9 | 165 GB | $3.80 | $3.30 |
+| 12 | 220 GB | $5.07 | $4.41 |
 
-Sum over the first 12 months: $18 on AWS, $16 on Google Cloud. Moving chunks older than 30 days to an infrequent-access class would halve the storage price, but every query over old logs then pays a retrieval fee, so it pays off only for logs that are rarely read.
+Sum over the first 12 months: $33 on AWS, $29 on Google Cloud. Moving chunks older than 30 days to an infrequent-access class would halve the storage price, but every query over old logs then pays a retrieval fee, so it pays off only for logs that are rarely read.
 
 <!-- cost-model:end -->
 
@@ -244,7 +246,7 @@ Sum over the first 12 months: $18 on AWS, $16 on Google Cloud. Moving chunks old
   - Google: $20.4/month per forwarding rule plus $0.009 per GB processed, so the data-processing
     part grows with traffic.
 - **Egress.** Google's Premium Tier costs $0.12/GiB against AWS's $0.09/GB, and AWS gives the first
-  100 GB free. At 1 TB a month that makes Google ~$40 more expensive on this line. Google's Standard
+  100 GB free. At the measured ~1.2 TB a month that makes Google ~$45 more expensive on this line. Google's Standard
   Tier ($0.085/GiB) would close the gap at the price of routing over the public internet.
 - **Database.**
   - RDS Multi-AZ with a burstable instance is the cheaper HA database.
@@ -259,16 +261,17 @@ Sum over the first 12 months: $18 on AWS, $16 on Google Cloud. Moving chunks old
 
 | Path | AWS | Google Cloud | In the estimate |
 |---|---|---|---|
-| Load balancer → pods in other zones; backend → database primary in another zone; Prometheus scraping nodes in other zones | $0.01/GB each way | $0.01/GiB | 100 GB/month in prod |
+| Backend → database primary in another zone; Prometheus scraping nodes in other zones | $0.01/GB each way | $0.01/GiB | 388 GB/month in prod: the measured flows, two thirds crossing zones |
+| Load balancer → pods in other zones | not stated on the pricing pages | billed as load balancer data processing | Not added: 6.8 GB/h at the peak, ~2 TB/month. If AWS billed it as regular inter-AZ traffic, it would add up to ~$26/month |
 | Nodes → internet through NAT (OS updates, external APIs, pulls that miss the endpoint) | $0.046/GB processed + egress | $0.045/GiB + egress | 50 GB/month prod, 20 GB test |
 | Image pulls from the registry | free in-region, **but through the NAT gateway unless the S3 gateway endpoint is used** | free in-region with Private Google Access | S3 endpoint / Private Google Access, so images and Loki chunks skip NAT |
 | Argo CD and runners ↔ GitLab in the shared network | VPC peering $0.01/GB each way | billed as inter-zone | 5 GB/month |
-| Load balancer data processing | in LCUs (1 LCU ≈ 1 GB/h of processed bytes) | $0.009/GB in and out | ~1 TB/month in prod |
+| Load balancer data processing | in LCUs (1 LCU ≈ 1 GB/h of processed bytes) | $0.009/GB in and out | ~1.5 TB/month in prod (1,189 GB out, 290 GB in): 2 LCU on average |
 | Replication of the database to its standby | free (Multi-AZ) | free (HA) | — |
 
 Two things make data transfer the easiest cost to underestimate. First, it grows with traffic, not
 with the infrastructure: double the users, double the egress. Second, it is spread over many small
-line items. Together the transfer lines are about 15–25% of the prod bill here.
+line items. Together the transfer lines are 19% of the prod bill on AWS and 27% on Google here.
 
 ### Storage beyond the base allocation
 
@@ -306,13 +309,22 @@ line items. Together the transfer lines are about 15–25% of the prod bill here
 | **GitLab-hosted runners** instead of runners in the cluster | ~+$29 (≈3,300 minutes/month: 400 free, then $10 per 1,000) | Nothing to run, but every pipeline minute is metered |
 | **One NAT gateway** in AWS prod instead of three | −$67 | A zone outage takes outbound internet away from the nodes in the other zones |
 | **AWS Client VPN** instead of WireGuard | +$110 to +$220 | Managed, integrates with SSO; much more expensive |
-| **Google Standard Tier** egress | −$35 | Traffic crosses the public internet longer; slightly higher latency |
+| **gzip in the app's nginx** (two lines in `nginx.conf`) | −$66 AWS / −$87 Google | None worth mentioning: browsers decompress, and nginx spends a little CPU. The JS bundle shrinks from 232 KB to 74 KB, and egress by ~57% |
+| **Google Standard Tier** egress | −$42 | Traffic crosses the public internet longer; slightly higher latency |
 | **3-year commitments** instead of 1-year | another −20…−30% on committed lines | Locked in before the real usage is known |
 
 ## Recommendation
 
-Both providers fit the requirements at a similar price, roughly $920–1,050 a month on demand and
-$680–820 optimised.
+Both providers fit the requirements at a similar price, roughly $950–1,100 a month on demand and
+$700–850 optimised.
+
+Before either, the app needs four changes that the load test and its code showed:
+- TLS to the database;
+- closing the result of a registration;
+- a connection pool that keeps its connections;
+- gzip.
+
+The first three are about whether it works under load at all; gzip saves $66–87 a month.
 
 - **Google Cloud is cheaper for this design:**
   - one free cluster;
