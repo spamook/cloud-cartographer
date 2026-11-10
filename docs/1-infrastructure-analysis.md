@@ -35,7 +35,8 @@ request metrics, PostgreSQL statistics, and the on-disk size of every volume. Ea
 | [01-idle](../measurements/01-idle/summary.md) | The cluster, the full monitoring stack and an empty database without traffic: the fixed cost of monitoring |
 | [02-db-benchmark](../measurements/02-db-benchmark/summary.md) | pgbench, 16 clients for 5 minutes, against a separate database: what PostgreSQL itself can do on two cores |
 | [03-log-volume](../measurements/03-log-volume/summary.md) | A generator writing ~300 JSON access-log lines per second through Alloy into Loki: the cost of logs per MB/s and Loki's real compression |
-| `04-app` application load steps | **Pending, the sample application could not be downloaded** (see [below](#application-under-load)) |
+| [04-app](../measurements/04-app) | The sample app under Locust, 100 → 1,500 simultaneous users in five 10-minute steps: what every component needs per user, the egress and the logs per user-hour, latency, the database's load |
+| [05-registration-leak](../measurements/05-registration-leak/summary.md) | 30 registrations and 30 attempts with a taken e-mail: every one leaves a database connection open |
 
 ### CPU and RAM per component (idle)
 
@@ -123,39 +124,200 @@ load it is the app's requests and responses, and it becomes the egress line of t
 
 ### Application under load
 
-**Status: pending.** The sample application is published as a single zip on one server. That
-server answered HTTP 502 from 2026-11-04 to the time of writing, and there is no other official
-copy. Everything else for this step is ready:
+**The application.**
+- **Stack:** a React 19 single-page app served by nginx, a Go 1.24 API (Fiber) and PostgreSQL.
+- **Source:** [`app/`](../app). The download server of the archive was down, so the source was
+  rebuilt from public copies; [`app/SOURCE.md`](../app/SOURCE.md) describes how.
+- **API:** five routes, `/api/ping`, `/api/register`, `/api/login`, `/api/logout` and
+  `/api/session`.
+- **Login:** the backend checks a bcrypt hash (cost 10) and returns a JWT (HS256, valid 1 hour).
+  The page keeps the token in a cookie and sends it in the `Authorization` header of
+  `/api/session`.
+- **Deployment:** the app runs from its own Dockerfiles with the chart in
+  [`deploy/charts/sample-app`](../deploy/charts/sample-app).
 
-- The cluster, the database the app will use, and all monitoring are running.
-- The app goes into [`app/`](../app) and is deployed with its own Helm chart, the same chart the
-  cloud setup will use.
-- Locust 2.47 is installed. The load test steps through 100 → 250 → 500 → 1,000 concurrent users,
-  10 minutes per step, then goes beyond 1,000 to find the breaking point, and finishes with a
-  60-minute soak at 1,000 users for growth rates.
-- `measure.py` produces the same tables as above for every step, including requests per second,
-  latency percentiles, bytes per response and bytes per user.
+**What a browser downloads**, measured with curl through Traefik:
 
-Until then, the cost model uses stated assumptions for the app-dependent quantities: egress, log
-volume and the app's share of the `main` nodes. They are listed in
-[`cost-model/bom.toml`](../cost-model/bom.toml) `[params]` and are replaced by the measured values
-when the run is done.
+| Request | Size | Browser cache |
+|---|---|---|
+| `/` (index.html) | 574 B | revalidated: 304 while unchanged |
+| `/config.js` | 30 B | revalidated |
+| `/static/js/main.*.js` | **231,812 B** | 1 year |
+| `/static/css/main.*.css` | 396 B | 1 year |
+| `/manifest.json`, `/favicon.ico` | 317 B, 574 B | revalidated |
+| `POST /api/login` | 497 B response | — |
+| `GET /api/session` | 177 B response | — |
+
+The app's nginx configuration has no compression. The JS bundle goes out as 232 KB; gzip would
+make it 74 KB (measured on the same file, 3.1× smaller).
+
+**The scenario** is in [`load/locustfile.py`](../load/locustfile.py). Each Locust user is a browser
+that repeats visits:
+
+1. It opens the site. 30% of visits start with an empty cache and download the bundles; the
+   others get 304s.
+2. The start page calls `/api/session` without a token (401), then `/api/logout`.
+3. It logs in with one of 2,000 accounts and loads the session.
+4. It reloads the page 10–30 times: index.html and config.js are revalidated, and `/api/session`
+   is called.
+5. It logs out.
+
+Every step is followed by 1–5 s of think time, so a Locust user acts about every 3 s. That is more
+often than a person, which makes the 1,000-user step a conservative stand-in for 1,000 real active
+users. The accounts are inserted into the database before the run: registering them through the
+API would leave one connection open per account (below).
+
+**The steps:** 100 → 250 → 500 → 1,000 → 1,500 simultaneous users, 10 minutes each. Each step is
+measured after a 60-second ramp ([04-app](../measurements/04-app)).
+
+**Results per step.** CPU in cores; each row links its full measurement.
+
+| Users | Requests/s | p50 | p95 | p99 | Failed | Out to users | Backend | Frontend | Traefik CPU / RAM | PostgreSQL | Node (of 6) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| [100](../measurements/04-app/step-100/summary.md) | 98 | 3 ms | 5 ms | 66 ms | 0 | 0.10 MB/s | 0.10 | 0.01 | 0.08 / 57 MiB | 0.02 | 0.63 |
+| [250](../measurements/04-app/step-250/summary.md) | 245 | 3 ms | 5 ms | 66 ms | 0 | 0.28 MB/s | 0.26 | 0.03 | 0.16 / 76 MiB | 0.04 | 0.97 |
+| [500](../measurements/04-app/step-500/summary.md) | 488 | 3 ms | 7 ms | 68 ms | 0 | 0.54 MB/s | 0.53 | 0.05 | 0.30 / 102 MiB | 0.09 | 1.55 |
+| [1,000](../measurements/04-app/step-1000/summary.md) | 928 | 4 ms | 83 ms | 363 ms | 0 | 1.02 MB/s | 1.18 | 0.09 | 0.51 / 191 MiB | 0.56 | 3.15 |
+| [1,500](../measurements/04-app/step-1500/summary.md) | 88 | 4.6 s | 5 s | 5 s | ~20% | 0.16 MB/s | 0.13 | 0.06 | 0.93 / 206 MiB | 0.04 | 1.55 |
+| [1,500 again, Traefik with 2 cores / 512 MiB](../measurements/04-app-1500/step-1500/summary.md) | 1,132 | 4 ms | 565 ms | 2.8 s | 0.2%; 11% of logins | 1.61 MB/s | 1.49 | 0.08 | 0.57 / 316 MiB | 0.90 | 3.96 |
+
+- **Each user makes about one request a second.** Up to 500 users the median stays at 3 ms and
+  p95 under 10 ms.
+- **At 1,000 users p95 reaches 83 ms.** That comes from the backend's CPU (below).
+- **The ingress broke between 1,000 and 1,500 users.** Traefik ran with a limit of 1 core and
+  256 MiB. During the ramp to 1,000 users and through the 1,500 step it reached both limits,
+  failed its health checks and was restarted five times. While it restarted, requests timed out or
+  got 404 and 502: 19,300 failed requests, 2% of the run. The 1,000 row is therefore measured over
+  the last 400 s of its step, after the restart.
+- **The repeated step.** With Traefik raised to 2 cores and 512 MiB, the 1,500-user step was run
+  once more ([04-app-1500](../measurements/04-app-1500/step-1500/summary.md)). Traefik held, and
+  the next two limits showed:
+  - **The backend's CPU:** 1.5 cores on average, 1.9 at peak, against its limit of 2. The
+    backend's p95 rose to 1.35 s.
+  - **The database's connections:** the backend's pool, which has no upper limit, reached
+    `max_connections`, and PostgreSQL refused 5,614 connections in ten minutes. The login handler
+    reports a database error as a wrong password, so 11% of logins failed with 401.
+
+  A few hundred 502s on the frontend's route within three seconds of the ramp make up the rest of
+  the 0.2%. At 1,500 users the load generator, two Locust processes on the same laptop, was near
+  its own limit. Its client-side times for the bundles are therefore not meaningful, and the table
+  uses Traefik's server-side times throughout.
+- **In short:** the setup meets the requirement of 1,000 simultaneous users with p95 83 ms and no
+  errors, and runs out at ~1,500. The limits there are the backend's CPU and the database's
+  connections, and both are settings or code in the app.
+
+**Per user and per request** (the 1,000-user step):
+
+| Quantity | Measured |
+|---|---|
+| Requests | 0.93 per user per second (think time 1–5 s); 37% go to the backend, 63% to nginx |
+| Egress to users | 1.02 MB/s of HTTP bytes, 1.15 MB/s on the wire: **3.7 MB per user-hour**, 4.1 GB/h in all |
+| What the egress is | **95% the JS bundle** on the 30% of visits with an empty cache (Locust: 11,424 bundle downloads averaged 111 KB. Every other response averaged 70 bytes, since most are 304s without a body). API responses average 172 B, the page's revalidations a few hundred bytes |
+| Requests from users | 0.27 MB/s, 1.0 GB/h |
+| Backend CPU | ~80 ms per login, which is bcrypt. Logins are 1.5% of the requests and ~90% of the backend's CPU. A session check costs a fraction of a millisecond |
+| Backend and frontend RAM | 18–22 MiB and 2–3 MiB: memory is not what the app needs |
+| Database | 426 transactions/s, mean statement 0.07 ms, cache hit 100%. The database stays at 8 MB, because the app writes only when someone registers |
+| Database connections | 6 on average, 20 at peak, but **~50 new ones every second**. PostgreSQL CPU 0.56 cores, see [bottlenecks](#2-performance-bottlenecks) |
+| Logs into Loki | 300 KB/s, 2.6 lines per request, 1.1 MB per user-hour. By source: Traefik's access log 42%, nginx 24%, CoreDNS 23% (Minikube logs every DNS query), backend 11% |
+| Disk | node writes 0.9 MB/s at 13 IOPS (Loki, Prometheus, PostgreSQL WAL): far below any volume's baseline |
+| Inside the cluster | Traefik ↔ pods 6.8 GB/h; backend ↔ PostgreSQL 1.1 GB/h; Alloy → Loki 53 KB/s (the lines compressed); scrapes into Prometheus 50 KB/s, the same as idle |
+
+The cost model takes its traffic volumes from this step: egress, requests, logs of nginx and the
+backend, and traffic between zones (see the [cost analysis](3-cost-analysis.md#sizing-and-where-it-comes-from)).
+
+#### Registration and database connections
+
+The register handler runs its `INSERT` with `db.Query` and never closes the result. The lookup
+that checks whether the e-mail is taken doesn't close its result either when it finds a row.
+[`scripts/registration-leak.sh`](../scripts/registration-leak.sh) measured the effect
+([05-registration-leak](../measurements/05-registration-leak/summary.md)):
+
+| Moment | Backend connections to PostgreSQL |
+|---|---|
+| Before | 3 |
+| After 30 new accounts | 32 |
+| After 30 attempts with an e-mail that is taken | 62 |
+| After a backend restart | 1 |
+
+- Every registration attempt keeps one connection, whether it succeeds or not, until the backend
+  restarts.
+- With `max_connections` 100, about 95 sign-ups after a restart are enough to lock the database
+  for every API call.
+- The managed databases have the same kind of limit, so the app needs this fixed before it goes
+  live (see [risks](4-risk-management.md#3-risk-mitigation)):
+  - **Cloud SQL** defaults to 100 connections for the prod instance (3.75 GB) and 50 for test's
+    db-g1-small ([flags](https://cloud.google.com/sql/docs/postgres/flags)).
+  - **RDS** derives the limit from memory, `DBInstanceClassMemory / 9531392`: a few hundred on
+    db.t4g.medium ([quotas](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Limits.html#RDS_Limits.MaxConnections)).
+
+  On either provider, a few hundred sign-ups at most lock the database.
 
 ## 2. Performance bottlenecks
 
 ### Resource constraints
 
-- **Memory of the single node.** 3.5 of 4.9 GB is in use at idle:
-  - Kubernetes' own pods take 840 MiB;
-  - the monitoring stack takes 1.0 GiB, about **17× the CPU share**, since its CPU is almost nothing;
-  - Minikube keeps its root filesystem in RAM.
+The first four come from the app's load test, in the order the load reached them.
 
-  Under load, Locust-driven pods and PostgreSQL's cache compete for the remaining ~1.4 GB.
-- **Database CPU and write IOPS.** Under pgbench PostgreSQL saturated its two cores (1.7–2.0) and
-  wrote 3,400–4,000 IOPS. CPU limits throughput first, then the disk's IOPS baseline.
-- **Grafana is the largest monitoring component** (434 MiB at idle): plugins, the SQLite database
-  and the dashboard sidecar. **Prometheus memory grows with the number of series** (cAdvisor and
-  kube-state-metrics series scale with pods and nodes).
+1. **The ingress (Traefik), between 1,000 and 1,500 users.**
+   - **What it costs:** 0.4–0.55 ms of CPU per request and 0.15–0.2 MiB per open connection (each
+     user keeps one), so 0.51 cores and up to 235 MiB at 1,000 users.
+   - **First limits, 1 core and 256 MiB:** it failed its health checks and was restarted, and the
+     requests in flight failed with it.
+   - **2 cores and 512 MiB:** it held 1,500 users at 0.57 cores and 316 MiB on average, 488 MiB
+     at peak.
+
+   In the cloud the managed load balancer has this role and scales on its own. What carries over is
+   that an in-cluster proxy needs its memory sized by open connections, not by requests.
+2. **The backend's CPU at logins.**
+   - **The load:** a login is a bcrypt check of ~80 ms of CPU, and logins make up ~90% of the
+     backend's CPU. It used 1.2 cores at 1,000 users.
+   - **At 1,500 users** it used 1.5 cores on average and 1.9 at peak against its 2-core limit. It
+     was throttled in up to 56% of the scheduler's 100 ms periods, and the backend's p95 rose to
+     1.35 s.
+
+   Two things make it worse than the average suggests:
+   - **Logins come in bursts.** When a step added 150–500 users within seconds, even
+     `/api/session`, which needs a fraction of a millisecond, waited up to a second.
+   - **Go 1.24 runs as many threads as the node has cores (6), not as many as the limit allows
+     (2).** A burst therefore spends its quota in the first third of a period and then waits.
+
+   In the cloud: `GOMAXPROCS` set to the CPU limit (or Go 1.25+, which reads the limit), the HPA
+   on CPU, and a rate limit on `/api/login`.
+3. **Database connections opened and closed constantly.**
+   - **Why:** Go's `database/sql` keeps only 2 idle connections unless told otherwise. Under
+     concurrency the backend opens more and closes them again right away.
+   - **How many:** ~50 new connections per second at 1,000–1,500 users, counted in PostgreSQL's
+     `pg_stat_database.sessions` (33,000 sessions in the hour of the test).
+   - **What each one costs:**
+     - a PostgreSQL process with password authentication;
+     - ~10 DNS queries, because the cluster's search domains are tried first. CoreDNS answered
+       480 queries/s at 1,000 users and 0.8/s at 100.
+   - **The effect:** PostgreSQL's CPU grew from 0.09 cores at 500 users to 0.56 at 1,000 and
+     0.9 at 1,500, while the statements themselves take 0.07 ms.
+   - **The pool has no upper limit either.** At 1,500 users it reached `max_connections`
+     (100): PostgreSQL refused 5,614 connections in ten minutes, and 11% of logins failed.
+   - **In the cloud**, TLS adds a handshake to every new connection on a database with 1–2 vCPUs.
+     Cloud SQL's limit for the prod instance is the same 100.
+
+   Fix in the app:
+   - `SetMaxIdleConns` equal to `SetMaxOpenConns`, e.g. 10 per replica, so replicas × 10 stays
+     under `max_connections`;
+   - the database host written with a trailing dot, or `ndots: 2`.
+4. **The JS bundle.** It is 95% of the bytes sent to users, uncompressed: 232 KB, or 74 KB with
+   gzip.
+5. **Memory of the single node.** 3.5 of 4.9 GB is in use at idle and 3.7 GB at 1,000 users:
+   - Kubernetes' own pods take 840 MiB;
+   - the monitoring stack takes 1.0 GiB, about **17× its CPU share**. Loki grows with the log stream
+     (160 → 280 MiB at 1,000 users);
+   - Minikube keeps its root filesystem in RAM.
+
+   The app's own pods need under 30 MiB together.
+6. **Database CPU and write IOPS under pgbench.** PostgreSQL saturated its two cores (1.7–2.0) and
+   wrote 3,400–4,000 IOPS. CPU limits throughput first, then the disk's IOPS baseline. The app
+   never comes close: its queries read, and its data fits in memory.
+7. **Grafana is the largest monitoring component** (434 MiB at idle): plugins, the SQLite database
+   and the dashboard sidecar. **Prometheus memory grows with the number of series** (cAdvisor and
+   kube-state-metrics series scale with pods and nodes).
 
 ### Current scaling limitations
 
@@ -165,19 +327,23 @@ when the run is done.
 | Prometheus | One replica, local disk; a pod restart loses ~2 h of in-memory head data until WAL replay | One replica per environment (HA optional with two replicas); 30 days on a zonal volume |
 | Loki | Monolithic, filesystem: cannot run more than one replica | Monolithic with object storage (S3 / Cloud Storage); can move to Simple Scalable or Distributed if logs exceed ~20 GB/day |
 | Grafana | SQLite on a volume: one replica | One replica is enough for a team; PostgreSQL backend if HA were needed |
-| Frontend, backend | Stateless; replicas limited by one node | Horizontal Pod Autoscaler plus cluster autoscaler across three zones |
+| Ingress (Traefik) | One replica on the node's port 80. With 1 core and 256 MiB it broke between 1,000 and 1,500 users; it now runs with 2 cores and 512 MiB | Managed external load balancer (ALB / Google external Application LB) that scales by itself |
+| Frontend, backend | Stateless, one replica each. The backend's 2 cores hold ~1,500 users. The database pool has no upper limit: at 1,500 users it filled `max_connections`, and more replicas would reach it sooner | Horizontal Pod Autoscaler plus cluster autoscaler across three zones; the pool limited per replica, so replicas × pool stays under `max_connections` |
 | The whole cluster | One VM, no zones: any failure stops everything | Three zones in prod, managed control plane |
 
 ### Components requiring the most resources
 
 1. **Kubernetes control plane** (840 MiB, 0.11 core). Managed by the provider in the cloud and
    paid as the cluster fee.
-2. **PostgreSQL under load** (up to 2 cores, 0.5 GB, 3,000+ IOPS). It becomes the managed database
-   and its instance class is the second-largest prod item.
-3. **Monitoring stack** (1 GiB together: Grafana 434 MiB, Prometheus 288 MiB, Loki 158 MiB). It
-   needs its own `monitoring` node group with 8 GB.
-4. **The app** itself (frontend, backend). Pending measurement; Go and nginx are typically tens of MB
-   each.
+2. **The backend at logins** (1.2 cores at 1,000 users, ~80 ms of CPU per login, 20 MiB). It
+   sets the size of the `main` node group. The frontend's nginx needs 0.09 cores and 3 MiB.
+3. **PostgreSQL** (2 cores under pgbench; 0.56 cores under the app at 1,000 users, mostly spent
+   opening connections; 70–140 MiB). It becomes the managed database, and its instance class is the
+   second-largest prod item.
+4. **Monitoring stack** (1 GiB together: Grafana 434 MiB, Prometheus 288 MiB, Loki 158 MiB, 280 MiB
+   under the app's logs). It needs its own `monitoring` node group with 8 GB.
+5. **The ingress** (0.5–0.6 cores and 190–490 MiB at 1,000–1,500 users). In the cloud it is the
+   managed load balancer, billed by processed bytes.
 
 ## 3. Dependency analysis
 
@@ -264,7 +430,14 @@ flowchart LR
 - **The registry and GitLab**: they sit in the shared account, so cross-account permissions, network
   peering and DNS must all work before the first deployment.
 - **Database connectivity**: private IP only, TLS, and the new hostname in the backend config.
+- **The backend cannot use TLS to the database yet.** Its connection string is built with
+  `sslmode=disable` (`app/backend/packages/db/db.go`), and the port is fixed at 5432. RDS for
+  PostgreSQL 15 and later rejects such connections by default (`rds.force_ssl=1`), and the design
+  requires TLS on Cloud SQL as well. This one-line change has to come before the migration (see
+  [security](#the-applications-own-security)).
 - **Pod Security and arm64 images**: images built only for amd64 do not start on Graviton nodes.
+  The app's Dockerfiles use multi-arch base images (golang, node, nginx, alpine), so building
+  for `linux/arm64` needs no change.
 
 ## 4. Data flow and network analysis
 
@@ -272,48 +445,52 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  user([Users]) ==>|"requests ↓ / responses ↑<br/>largest flow: egress (est. ~1 TB/month prod)"| lb[Load balancer]
-  lb ==> fe[Frontend: static files]
-  lb ==> be[Backend: JSON API]
-  be <-->|"SQL: small queries, ~0.1–1 ms each"| db[(PostgreSQL)]
+  user([Users]) ==>|"requests 1.0 GB/h ↓ / responses 4.1 GB/h ↑<br/>at 1,000 users: ~1.2 TB/month egress in prod"| lb[Load balancer]
+  lb ==>|"590 req/s, 95% of the bytes:<br/>the JS bundle"| fe[Frontend: static files]
+  lb ==>|"340 req/s, 172 B per response"| be[Backend: JSON API]
+  be <-->|"SQL: 430 tx/s, 0.07 ms each, 1.1 GB/h<br/>~50 new connections/s"| db[(PostgreSQL)]
   db -.->|"pg statistics, ~3.5 KiB/s"| exp[postgres-exporter]
   exp -.->|scrape| prom[Prometheus]
   nodes[Nodes: cAdvisor, node-exporter,<br/>kube-state-metrics] -.->|"scrapes ~45 KiB/s<br/>(3.7 GB/day)"| prom
-  pods[All pods: stdout] -.->|"Alloy → Loki: 1 KiB/s idle,<br/>grows with requests"| loki[Loki]
+  pods[All pods: stdout] -.->|"Alloy → Loki: 1 KiB/s idle,<br/>53 KB/s at 1,000 users (300 KB/s of lines)"| loki[Loki]
   loki -.->|"compressed chunks, 6–9× smaller (measured)"| bucket[(Object storage)]
   graf[Grafana] -.->|"queries on demand"| prom & loki
   reg[(Registry)] -->|"image pulls at deploy and scale-out<br/>(~100 MB per new node)"| nodes
 ```
 
-Solid lines carry user traffic, dotted lines are monitoring. Volumes come from the idle and
-database runs; the user-traffic volumes are filled in by the application run.
+Solid lines carry user traffic, dotted lines are monitoring. User-traffic volumes come from the
+1,000-user step of the app run; the monitoring volumes come from the idle and database runs.
 
 ### Network usage during peak hours
 
-At the expected peak of 1,000 simultaneous users, three flows dominate:
+Measured at the peak of 1,000 simultaneous users
+([step-1000](../measurements/04-app/step-1000/summary.md)):
 
-| Flow | Share | Why |
+| Flow | At 1,000 users | Why it matters |
 |---|---|---|
-| Responses to users (external egress) | dominant | proportional to users × bytes per page and API response; the only flow billed per GB to the internet |
-| Load balancer → pods and backend → database across zones | moderate | in prod two of three backend pods sit in a different zone from the database primary |
-| Monitoring | constant | scrapes don't depend on users; logs grow with requests |
+| Responses to users (egress) | **4.1 GB/h** (1.15 MB/s) | The only flow billed per GB to the internet. 95% of it is the JS bundle |
+| Requests from users | 1.0 GB/h | Load balancer capacity units / data processing |
+| Load balancer ↔ pods | 6.8 GB/h | Crosses zones for two of three pods; priced by the load balancer |
+| Backend ↔ database | 1.1 GB/h | Two of three backend pods sit in a different zone from the database primary. Connection churn inflates it |
+| Logs | 300 KB/s of lines, 53 KB/s on the wire to Loki | Storage that builds up for a year |
+| Metrics scrapes | 50 KB/s | Does not depend on users |
 
-The local idle network numbers (Prometheus ingestion 45 KiB/s, system traffic ~330 KiB/s) are the
-floor under the peak.
+The local idle numbers are the floor under the peak: Prometheus ingestion 45 KiB/s and system
+traffic ~330 KiB/s.
 
 ### Latency-sensitive relationships
 
 | Path | Why it is latency-sensitive | Design consequence |
 |---|---|---|
 | User → load balancer → frontend / backend | user-facing response time | load balancer in the same region; keep-alive; static files cacheable |
-| Backend → PostgreSQL | every API request waits for its queries; a statement takes ~0.1 ms on the server, so network round trips dominate | database in the same region and VPC; private IP; connection pooling in the backend; topology-aware routing so pods prefer their own zone |
+| Backend → PostgreSQL | Every API request waits for its queries. A statement takes 0.07 ms on the server (measured), so network round trips dominate, and a new connection (process, authentication, TLS, DNS) costs far more than a query | Database in the same region and VPC; private IP; a connection pool that keeps its connections; topology-aware routing so pods prefer their own zone |
 | Kubernetes control plane ↔ nodes | scheduling, probes | managed, same region |
 
 ### Bandwidth-intensive operations
 
 | Operation | When | Mitigation |
 |---|---|---|
-| Static asset delivery (JS bundle, images) to browsers | every new visitor | gzip/brotli, long-lived cache headers, CDN if traffic grows |
+| Static asset delivery: the 232 KB JS bundle | every visit with an empty cache; 95% of the egress | gzip in nginx (74 KB, egress −57%); the one-year cache headers are already there; a CDN if traffic grows |
 | Container image pulls | deploys, new nodes | images in the same region; registry endpoint / Private Google Access keeps them off NAT; small images |
 | Log shipping and Loki chunk writes | continuous, grows with traffic | compression; ingestion limits; access logs at the load balancer instead of in the app |
 | Prometheus scrapes | continuous | 30 s interval in the cloud where 15 s is not needed |
@@ -368,6 +545,21 @@ floor under the peak.
 - Separate accounts per environment, so a mistake in test cannot touch prod.
 - Root and owner accounts are locked away with MFA and used only in an emergency.
 - CloudTrail / Cloud Audit Logs are on in every account and project.
+
+### The application's own security
+
+From reading the app's code and running it. The first two rows have to be fixed before the
+migration; the rest are requirements the cloud setup covers.
+
+| Finding | Risk | Requirement |
+|---|---|---|
+| The database connection is built with `sslmode=disable` | The managed databases require TLS: with RDS (PostgreSQL 15+, `rds.force_ssl=1` by default) and Cloud SQL (SSL enforced) the backend cannot connect | One-line change in `db.go`: `sslmode=verify-full` with the provider's CA certificate in the image |
+| Every registration leaves a database connection open (measured, see [above](#registration-and-database-connections)) | Denial of service: about 95 sign-ups after a restart fill `max_connections` and every API call fails | Close the query result in the app; until then an alert on connections above 80% of the limit |
+| The image contains a development `.env` with `JWT_KEY=secretive` and the database password `postgres`, used for any variable that is missing | A forgotten variable lets anyone sign valid login tokens | All values from the chart. `JWT_KEY` and the database password come from Secrets Manager / Secret Manager through External Secrets, locally from Secrets. CI drops `.env` from the image |
+| `/api/login` has no rate limit, and every attempt is a bcrypt check costing ~80 ms of CPU | Password guessing, and a burst of logins saturates the backend | A rate limit in the backend (Fiber's limiter middleware on `/api/login`); HPA on CPU. A load balancer rule (AWS WAF, Cloud Armor) also works, but AWS WAF bills every request it inspects: $0.60 per million, ~$600/month at the modelled ~1 billion requests ([pricing](https://aws.amazon.com/waf/pricing/)) |
+| Database errors other than "no rows" are ignored | A refused connection becomes 401 "Incorrect credentials" at login, and an empty user with 200 at `/api/session` (seen at 1,500 users). Outages look like wrong passwords, and 5xx monitoring sees nothing | Return 5xx on database errors; alert on PostgreSQL connection refusals |
+| The page keeps the token in a cookie that JavaScript can read and sends it as a header | A cross-site scripting bug would leak tokens | Content-Security-Policy and the other security headers at the load balancer; tokens are valid for 1 hour |
+| CORS allows the origin in `CLIENT_URL` | — | Set to the public origin, `https://app.example` |
 
 ### Networking
 
