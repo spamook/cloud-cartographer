@@ -3,7 +3,7 @@
 # measurements of every step and of the whole run.
 #
 # usage: scripts/load-test.sh <run-name> [workers]
-#   CC_FRONTEND_PATHS, CC_API_PATHS, CC_STEPS, CC_STEP_SECONDS: see load/locustfile.py
+#   CC_ACCOUNTS, CC_COLD_SHARE, CC_STEPS, CC_STEP_SECONDS: see load/locustfile.py
 #
 # Locust's --processes needs fork(), which Windows doesn't have, so the master and the workers are
 # started as separate processes.
@@ -11,12 +11,27 @@ source "$(dirname "$0")/lib.sh"
 use_cluster
 NAME=${1:?run name, e.g. 04-app}
 WORKERS=${2:-4}
+export CC_ACCOUNTS=${CC_ACCOUNTS:-2000}
 export CC_STEPS=${CC_STEPS:-100,250,500,1000,1500}
 export CC_STEP_SECONDS=${CC_STEP_SECONDS:-600}
+CC_USER_PASSWORD=$(password load-users)
+export CC_USER_PASSWORD
 LOCUST=.venv/Scripts/locust
 [ -x "$LOCUST" ] || LOCUST=.venv/bin/locust
 OUT=measurements/$NAME
 mkdir -p "$OUT"
+
+step "Accounts for the virtual users: loaduser1..$CC_ACCOUNTS@example.com"
+# Straight into the database, with one bcrypt hash of cost 10 as the app makes them. Registering
+# them through the API would leave one database connection open per account. The password goes
+# through stdin, not the command line.
+kubectl -n app exec -i postgres-0 -- psql -q -v ON_ERROR_STOP=1 -U app -d app <<SQL
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+INSERT INTO users (name, password, email)
+SELECT 'Load user ' || g, h.hash, 'loaduser' || g || '@example.com'
+FROM generate_series(1, $CC_ACCOUNTS) g, (SELECT crypt('$CC_USER_PASSWORD', gen_salt('bf', 10)) AS hash) h
+ON CONFLICT (email) DO NOTHING;
+SQL
 
 step "Locust: $WORKERS workers, steps $CC_STEPS users, ${CC_STEP_SECONDS}s each, against http://$IP"
 pids=()
