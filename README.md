@@ -20,15 +20,15 @@ prices both for two environments, `test` and `prod`, sized for 1,000 simultaneou
 
 | | AWS (eu-north-1) | Google Cloud (europe-north1) |
 |---|---|---|
-| On-demand, per month | $1,053 | $924 |
-| Optimised, per month | $822 | $676 |
+| On-demand, per month | $1,084 | $955 |
+| Optimised, per month | $853 | $707 |
 
 - *Optimised* means:
   - test runs on Spot capacity and only in working hours;
   - the always-on prod capacity and the GitLab VM use 1-year commitments.
 - Prices were checked on 2026-11-08 from the providers' official pricing pages.
-- The application-dependent quantities (egress, log volume) are provisional until the application
-  load test; see [the analysis](docs/1-infrastructure-analysis.md#application-under-load).
+- Egress, log volume and the traffic between zones come from the application's load test at up to
+  1,500 simultaneous users; see [the analysis](docs/1-infrastructure-analysis.md#application-under-load).
 
 ## Repository layout
 
@@ -36,13 +36,14 @@ prices both for two environments, `test` and `prod`, sized for 1,000 simultaneou
 docs/                 the four reports
 cost-model/           prices.toml (unit prices + sources), bom.toml (what runs where), calc.py
 measurements/         one folder per measured run: summary.md, summary.json, samples.csv
-scripts/              cluster-up.sh, setup.sh, measure.py, db-benchmark.sh, load-test.sh
-load/                 Locust scenario with the user steps
+scripts/              cluster-up.sh, setup.sh, measure.py, db-benchmark.sh, load-test.sh,
+                      log-benchmark.sh, registration-leak.sh
+load/                 Locust scenario: the app's visit (page, login, reloads, logout)
 deploy/charts/        Helm chart of the sample app (frontend, backend, ingress, HPA, PDB)
 deploy/local/         namespaces, PostgreSQL, ingress for Grafana and Prometheus, log generator
 deploy/values/        Helm values: kube-prometheus-stack, Loki, Alloy, postgres-exporter, Traefik
 deploy/dashboards/    Grafana dashboard "Cloud Cartographer: baseline"
-app/                  the sample application
+app/                  the sample application, unchanged (where its source comes from: app/SOURCE.md)
 ```
 
 ## Running the local setup
@@ -61,13 +62,15 @@ Steps:
    scripts/cluster-up.sh
    ```
 
-2. Install Traefik, PostgreSQL and the monitoring stack.
+2. Install Traefik, PostgreSQL, the monitoring stack and the app. The app's images are built
+   inside the VM from its own Dockerfiles.
 
    ```bash
    scripts/setup.sh
    ```
 
 3. Open the UIs:
+   - the app: `http://<minikube ip>/`
    - Grafana: `http://<minikube ip>/grafana` (user `admin`, password in `.secrets/grafana-admin`)
    - Prometheus: `http://<minikube ip>/prometheus`
 
@@ -93,11 +96,20 @@ Run the database capacity test (pgbench, 16 clients, 5 minutes):
 scripts/db-benchmark.sh
 ```
 
-Run the stepped load test (100 → 1,500 users, 10 minutes per step), with the app's routes in
-`CC_FRONTEND_PATHS` and `CC_API_PATHS`:
+Run the stepped load test against the app: 100 → 1,500 simultaneous users, 10 minutes per step.
+It first creates 2,000 accounts in the database, then replays the app's visit: page, login,
+reloads, logout.
 
 ```bash
-scripts/load-test.sh 04-app
+scripts/load-test.sh 04-app 2
+```
+
+The second argument is the number of Locust worker processes.
+
+Check that every registration leaves a database connection open:
+
+```bash
+scripts/registration-leak.sh
 ```
 
 The results land in `measurements/<name>/`. The Grafana dashboard *Cloud Cartographer: baseline*
