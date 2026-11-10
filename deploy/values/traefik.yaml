@@ -38,6 +38,8 @@ metrics:
       enabled: true
     serviceMonitor:
       enabled: true
+# 1 core / 256 MiB was the breaking point of the first load test: at ~1,000 users (one open
+# connection each) Traefik reached both limits, failed its probes and was restarted
 resources:
   requests: {cpu: 100m, memory: 64Mi}
-  limits: {cpu: "1", memory: 256Mi}
+  limits: {cpu: "2", memory: 512Mi}
