@@ -41,8 +41,10 @@ for _ in $(seq "$WORKERS"); do
 done
 trap 'kill "${pids[@]}" 2>/dev/null || true' EXIT
 start=$(date +%s)
+# Locust exits with 1 when any request failed; the measurements are needed all the more then
 "$LOCUST" -f load/locustfile.py --master --headless --expect-workers "$WORKERS" \
-    --host "http://$IP" --csv "$OUT/locust" --html "$OUT/locust-report.html" --only-summary
+    --host "http://$IP" --csv "$OUT/locust" --html "$OUT/locust-report.html" --only-summary ||
+    echo "Locust reported failed requests: $OUT/locust_failures.csv"
 end=$(date +%s)
 
 step "Measurements per step"
