@@ -1,0 +1,46 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+GET,/manifest.json,"RetriesExceeded('http://192.168.56.104/manifest.json', 0, original=timed out)",18,2026-11-10T21:14:13Z,2026-11-10T21:32:14Z
+GET,/ (index.html),LocustBadStatusCode(code=502),2269,2026-11-10T21:13:20Z,2026-11-10T21:32:19Z
+GET,/api/logout,"ConnectionRefusedError(10061, '[WinError 10061] Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение.')",255,2026-11-10T21:15:08Z,2026-11-10T21:32:29Z
+GET,/static/ (JS and CSS bundles),HTTPParseError('Incomplete response.'),1,2026-11-10T21:25:18Z,2026-11-10T21:25:18Z
+GET,/favicon.ico,"RetriesExceeded('http://192.168.56.104/favicon.ico', 0, original=timed out)",11,2026-11-10T21:14:44Z,2026-11-10T21:32:20Z
+GET,/api/logout,"RetriesExceeded('http://192.168.56.104/api/logout', 0, original=[Errno 10060] [WinError 10060] Попытка установить соединение была безуспешной, т.к. от другого компьютера за требуемое время не получен нужный отклик, или было разорвано уже установленное соединение из-за неверного отклика уже подключенного компьютера.)",5,2026-11-10T21:24:11Z,2026-11-10T21:24:13Z
+GET,/static/ (JS and CSS bundles),LocustBadStatusCode(code=502),298,2026-11-10T21:22:57Z,2026-11-10T21:31:14Z
+GET,/api/session (no token),"CatchResponseError('HTTP 404, expected 401')",206,2026-11-10T21:15:19Z,2026-11-10T21:25:28Z
+GET,/static/ (JS and CSS bundles),LocustBadStatusCode(code=404),92,2026-11-10T21:15:19Z,2026-11-10T21:25:28Z
+GET,/manifest.json,"RetriesExceeded('http://192.168.56.104/manifest.json', 0, original=[Errno 10060] [WinError 10060] Попытка установить соединение была безуспешной, т.к. от другого компьютера за требуемое время не получен нужный отклик, или было разорвано уже установленное соединение из-за неверного отклика уже подключенного компьютера.)",2,2026-11-10T21:24:11Z,2026-11-10T21:24:15Z
+GET,/ (index.html),LocustBadStatusCode(code=404),1002,2026-11-10T21:15:18Z,2026-11-10T21:25:28Z
+GET,/ (index.html),LocustBadStatusCode(code=500),39,2026-11-10T21:22:57Z,2026-11-10T21:31:14Z
+GET,/ (index.html),LocustBadStatusCode(code=499),1,2026-11-10T21:27:01Z,2026-11-10T21:27:01Z
+GET,/static/ (JS and CSS bundles),"RetriesExceeded('http://192.168.56.104/static/css/main.9ab1826b.css', 0, original=timed out)",8,2026-11-10T21:26:29Z,2026-11-10T21:32:13Z
+GET,/static/ (JS and CSS bundles),"RetriesExceeded('http://192.168.56.104/static/js/main.eac598a0.js', 0, original=[Errno 10060] [WinError 10060] Попытка установить соединение была безуспешной, т.к. от другого компьютера за требуемое время не получен нужный отклик, или было разорвано уже установленное соединение из-за неверного отклика уже подключенного компьютера.)",3,2026-11-10T21:25:23Z,2026-11-10T21:25:26Z
+GET,/manifest.json,LocustBadStatusCode(code=502),115,2026-11-10T21:22:57Z,2026-11-10T21:30:58Z
+GET,/config.js,HTTPParseError('Incomplete response.'),1,2026-11-10T21:25:18Z,2026-11-10T21:25:18Z
+GET,/manifest.json,LocustBadStatusCode(code=404),60,2026-11-10T21:15:19Z,2026-11-10T21:25:28Z
+POST,/api/login,CatchResponseError('login failed with HTTP 401'),3,2026-11-10T21:02:44Z,2026-11-10T21:02:55Z
+GET,/config.js,"RetriesExceeded('http://192.168.56.104/config.js', 0, original=[Errno 10060] [WinError 10060] Попытка установить соединение была безуспешной, т.к. от другого компьютера за требуемое время не получен нужный отклик, или было разорвано уже установленное соединение из-за неверного отклика уже подключенного компьютера.)",52,2026-11-10T21:24:15Z,2026-11-10T21:25:35Z
+GET,/favicon.ico,LocustBadStatusCode(code=404),105,2026-11-10T21:15:19Z,2026-11-10T21:25:28Z
+GET,/ (index.html),"ConnectionRefusedError(10061, '[WinError 10061] Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение.')",1879,2026-11-10T21:15:08Z,2026-11-10T21:32:29Z
+GET,/static/ (JS and CSS bundles),LocustBadStatusCode(code=500),7,2026-11-10T21:22:57Z,2026-11-10T21:31:14Z
+GET,/config.js,LocustBadStatusCode(code=499),3,2026-11-10T21:26:46Z,2026-11-10T21:28:40Z
+GET,/ (index.html),"RetriesExceeded('http://192.168.56.104/', 0, original=[Errno 10060] [WinError 10060] Попытка установить соединение была безуспешной, т.к. от другого компьютера за требуемое время не получен нужный отклик, или было разорвано уже установленное соединение из-за неверного отклика уже подключенного компьютера.)",67,2026-11-10T21:24:11Z,2026-11-10T21:25:35Z
+GET,/config.js,LocustBadStatusCode(code=404),1609,2026-11-10T21:15:18Z,2026-11-10T21:25:28Z
+GET,/favicon.ico,LocustBadStatusCode(code=502),89,2026-11-10T21:22:58Z,2026-11-10T21:31:45Z
+GET,/api/session,"CatchResponseError('HTTP 0, expected 200')",2259,2026-11-10T21:15:08Z,2026-11-10T21:32:29Z
+GET,/favicon.ico,"RetriesExceeded('http://192.168.56.104/favicon.ico', 0, original=[Errno 10060] [WinError 10060] Попытка установить соединение была безуспешной, т.к. от другого компьютера за требуемое время не получен нужный отклик, или было разорвано уже установленное соединение из-за неверного отклика уже подключенного компьютера.)",9,2026-11-10T21:24:11Z,2026-11-10T21:25:33Z
+POST,/api/login,CatchResponseError('login failed with HTTP 404'),115,2026-11-10T21:15:18Z,2026-11-10T21:25:28Z
+GET,/config.js,LocustBadStatusCode(code=500),27,2026-11-10T21:22:57Z,2026-11-10T21:31:15Z
+GET,/api/logout,LocustBadStatusCode(code=404),240,2026-11-10T21:15:18Z,2026-11-10T21:25:28Z
+GET,/config.js,"ConnectionRefusedError(10061, '[WinError 10061] Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение.')",2288,2026-11-10T21:15:08Z,2026-11-10T21:32:29Z
+GET,/static/ (JS and CSS bundles),"ConnectionRefusedError(10061, '[WinError 10061] Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение.')",141,2026-11-10T21:15:08Z,2026-11-10T21:32:28Z
+GET,/api/session (no token),"CatchResponseError('HTTP 0, expected 401')",297,2026-11-10T21:15:09Z,2026-11-10T21:32:28Z
+GET,/ (index.html),"RetriesExceeded('http://192.168.56.104/', 0, original=timed out)",686,2026-11-10T21:13:34Z,2026-11-10T21:32:28Z
+POST,/api/login,CatchResponseError('login failed with HTTP 0'),81,2026-11-10T21:15:07Z,2026-11-10T21:32:29Z
+GET,/manifest.json,"ConnectionRefusedError(10061, '[WinError 10061] Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение.')",157,2026-11-10T21:15:08Z,2026-11-10T21:32:28Z
+GET,/static/ (JS and CSS bundles),"RetriesExceeded('http://192.168.56.104/static/js/main.eac598a0.js', 0, original=timed out)",6,2026-11-10T21:13:45Z,2026-11-10T21:32:15Z
+GET,/config.js,LocustBadStatusCode(code=502),2051,2026-11-10T21:12:43Z,2026-11-10T21:31:56Z
+GET,/api/session,"CatchResponseError('HTTP 404, expected 200')",1932,2026-11-10T21:15:18Z,2026-11-10T21:25:28Z
+GET,/static/ (JS and CSS bundles),"RetriesExceeded('http://192.168.56.104/static/css/main.9ab1826b.css', 0, original=[Errno 10060] [WinError 10060] Попытка установить соединение была безуспешной, т.к. от другого компьютера за требуемое время не получен нужный отклик, или было разорвано уже установленное соединение из-за неверного отклика уже подключенного компьютера.)",2,2026-11-10T21:25:26Z,2026-11-10T21:25:35Z
+GET,/manifest.json,LocustBadStatusCode(code=500),4,2026-11-10T21:23:06Z,2026-11-10T21:24:00Z
+GET,/favicon.ico,"ConnectionRefusedError(10061, '[WinError 10061] Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение.')",211,2026-11-10T21:15:10Z,2026-11-10T21:32:23Z
+GET,/config.js,"RetriesExceeded('http://192.168.56.104/config.js', 0, original=timed out)",622,2026-11-10T21:13:34Z,2026-11-10T21:32:28Z
