@@ -1,0 +1,10 @@
+# Replaces the image's config.js, which points the page at http://localhost:8080
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  labels:
+    {{- include "sample-app.labels" . | nindent 4 }}
+data:
+  config.js: |
+    window.REACT_APP_API_URL = {{ .Values.frontend.apiUrl | quote }}

@@ -1,9 +1,19 @@
 # The same chart runs locally and in the cloud; only these values differ.
+# The images are built from the app's own Dockerfiles (app/frontend, app/backend).
 
 frontend:
   image: sample-frontend:1.0     # locally built with `minikube image build`; in the cloud from the registry
-  port: 8080                     # nginx-unprivileged: the namespace allows only non-root containers
+  port: 3000                     # the app's nginx.conf listens on 3000
   replicas: 1
+  healthPath: /
+  # The image is the official nginx, which starts as root. The namespace admits only non-root
+  # containers, so nginx runs as the image's nginx user, with its cache and pid directories on
+  # emptyDir volumes (the image's own are writable by root only).
+  runAsUser: 101
+  writableDirs: [/var/cache/nginx, /var/run]
+  # API address for the page (window.REACT_APP_API_URL in config.js). Empty means the same host,
+  # where the ingress sends /api to the backend.
+  apiUrl: ""
   resources:
     requests: {cpu: 50m, memory: 32Mi}
     limits: {cpu: 500m, memory: 128Mi}
@@ -13,34 +23,40 @@ backend:
   image: sample-backend:1.0
   port: 8080
   replicas: 1
-  healthPath: /health
+  healthPath: /api/ping
+  runAsUser: 65534               # nobody: the Go binary needs no privileges
   resources:
-    requests: {cpu: 100m, memory: 64Mi}
-    limits: {cpu: "1", memory: 256Mi}
-  # plain variables; names depend on the app
-  env: {}
-  # database connection taken from a Secret (locally the `postgres` Secret of scripts/setup.sh,
-  # in the cloud one synced by External Secrets): variable name → key in the Secret
+    requests: {cpu: 250m, memory: 64Mi}
+    limits: {cpu: "2", memory: 256Mi}
+  # Plain variables. They take precedence over the development defaults in the image's .env.
+  env:
+    SERVER_PORT: ":8080"
+    RUN_MIGRATION: "true"        # the backend creates its table on start
+    CLIENT_URL: ""               # the page's origin for CORS, e.g. http://192.168.56.104
+  # Database connection: the password comes from a Secret (locally the `postgres` Secret of
+  # scripts/setup.sh, in the cloud one synced by External Secrets). The app always uses port 5432.
   database:
-    secretName: postgres
     host: postgres.app.svc.cluster.local
-    port: "5432"
     name: app
     user: app
+    secretName: postgres
     passwordKey: password
     envNames:
-      host: DB_HOST
-      port: DB_PORT
-      name: DB_NAME
-      user: DB_USER
-      password: DB_PASSWORD
+      host: POSTGRES_SERVER_HOST
+      name: POSTGRES_DB
+      user: POSTGRES_USER
+      password: POSTGRES_PASSWORD
+  # Key that signs the login tokens
+  jwt:
+    secretName: backend
+    key: jwt-key
+    envName: JWT_KEY
 
 ingress:
   className: traefik           # cloud: alb (AWS Load Balancer Controller) or gce
   host: ""                     # cloud: the public name, e.g. app.example
   annotations: {}
   apiPath: /api                # requests under this path go to the backend
-  stripApiPrefix: false
 
 autoscaling:
   enabled: false               # true in the cloud: HPA on CPU

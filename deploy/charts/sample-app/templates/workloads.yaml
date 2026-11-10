@@ -20,9 +20,16 @@ spec:
       labels:
         {{- include "sample-app.labels" $ | nindent 8 }}
         app.kubernetes.io/name: {{ $name }}
+      {{- if eq $name "frontend" }}
+      annotations:
+        # a new config.js rolls the pods
+        checksum/config: {{ include (print $.Template.BasePath "/frontend-config.yaml") $ | sha256sum }}
+      {{- end }}
     spec:
       securityContext:
         {{- include "sample-app.podSecurity" $ | nindent 8 }}
+        runAsUser: {{ $c.runAsUser }}
+        runAsGroup: {{ $c.runAsUser }}
       # one replica per zone where there are several
       topologySpreadConstraints:
         - maxSkew: 1
@@ -46,8 +53,6 @@ spec:
             {{- $db := $c.database }}
             - name: {{ $db.envNames.host }}
               value: {{ $db.host | quote }}
-            - name: {{ $db.envNames.port }}
-              value: {{ $db.port | quote }}
             - name: {{ $db.envNames.name }}
               value: {{ $db.name | quote }}
             - name: {{ $db.envNames.user }}
@@ -57,16 +62,41 @@ spec:
                 secretKeyRef:
                   name: {{ $db.secretName }}
                   key: {{ $db.passwordKey }}
+            - name: {{ $c.jwt.envName }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $c.jwt.secretName }}
+                  key: {{ $c.jwt.key }}
             {{- end }}
           readinessProbe:
             httpGet:
-              path: {{ if eq $name "backend" }}{{ $c.healthPath }}{{ else }}/{{ end }}
+              path: {{ $c.healthPath }}
               port: http
             periodSeconds: 5
           resources:
             {{- toYaml $c.resources | nindent 12 }}
           securityContext:
             {{- include "sample-app.containerSecurity" $ | nindent 12 }}
+          {{- if eq $name "frontend" }}
+          volumeMounts:
+            - name: config
+              mountPath: /usr/share/nginx/html/config.js
+              subPath: config.js
+            {{- range $i, $dir := $c.writableDirs }}
+            - name: writable-{{ $i }}
+              mountPath: {{ $dir }}
+            {{- end }}
+          {{- end }}
+      {{- if eq $name "frontend" }}
+      volumes:
+        - name: config
+          configMap:
+            name: frontend-config
+        {{- range $i, $dir := $c.writableDirs }}
+        - name: writable-{{ $i }}
+          emptyDir: {}
+        {{- end }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

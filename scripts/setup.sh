@@ -49,6 +49,20 @@ kubectl -n monitoring create configmap dashboard-baseline \
     --from-file=baseline.json=deploy/dashboards/baseline.json --dry-run=client -o yaml |
     kubectl label --local -f - grafana_dashboard=1 -o yaml | kubectl apply -f -
 
+step "Sample app images, from the app's own Dockerfiles"
+for part in backend frontend; do
+    # built once; CC_REBUILD=1 builds them again after a change in app/
+    if [ -n "${CC_REBUILD:-}" ] || ! minikube -p "$PROFILE" image ls | grep -q "sample-$part:1.0"; then
+        minikube -p "$PROFILE" image build -t "sample-$part:1.0" "app/$part"
+    fi
+done
+
+step "Sample app"
+put_secret app backend jwt-key="$(password backend-jwt-key)"
+helm upgrade --install sample-app deploy/charts/sample-app -n app \
+    --set backend.env.CLIENT_URL="http://$IP" --wait --timeout 10m
+
 echo
+echo "App:        http://$IP/"
 echo "Grafana:    http://$IP/grafana  (admin / password in .secrets/grafana-admin)"
 echo "Prometheus: http://$IP/prometheus"
