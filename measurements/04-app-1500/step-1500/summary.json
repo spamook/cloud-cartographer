@@ -1,0 +1,520 @@
+{
+  "start": 1794346586.0,
+  "end": 1794347126.0,
+  "seconds": 540.0,
+  "components": {
+    "traefik": {
+      "placement": "ingress (cloud: load balancer)",
+      "pods": 1,
+      "cpu_cores": {
+        "avg": 0.565244559846688,
+        "peak": 0.678233514422749
+      },
+      "memory_bytes": {
+        "avg": 331425072.4324324,
+        "peak": 511852544.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 2294830.34154637,
+        "peak": 7411644.681455734
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 2805540.6769731417,
+        "peak": 4994671.288229197
+      },
+      "net_rx_bytes": 1273630839.5582356,
+      "net_tx_bytes": 1557075075.7200937,
+      "fs_write_bytes_per_s": {
+        "avg": 0.0,
+        "peak": 0.0
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 506055.5114807245,
+        "peak": 3088360.0384667255
+      }
+    },
+    "frontend": {
+      "placement": "main",
+      "pods": 1,
+      "cpu_cores": {
+        "avg": 0.08036789281376816,
+        "peak": 0.09856232653259975
+      },
+      "memory_bytes": {
+        "avg": 4347848.6486486485,
+        "peak": 31797248.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 308459.8843818516,
+        "peak": 380853.8615760112
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 1724569.135251043,
+        "peak": 6950216.506268851
+      },
+      "net_rx_bytes": 171195235.83192763,
+      "net_tx_bytes": 957135870.0643289,
+      "fs_write_bytes_per_s": {
+        "avg": 0.0,
+        "peak": 0.0
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 979.7064624669341,
+        "peak": 13748.684953395434
+      }
+    },
+    "backend": {
+      "placement": "main",
+      "pods": 1,
+      "cpu_cores": {
+        "avg": 1.4897418268143001,
+        "peak": 1.9134758252294186
+      },
+      "memory_bytes": {
+        "avg": 45344823.35135135,
+        "peak": 172912640.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 814838.6692921754,
+        "peak": 1075819.0662536006
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 497969.0890188041,
+        "peak": 685085.5209522257
+      },
+      "net_rx_bytes": 452235461.4571574,
+      "net_tx_bytes": 276372844.4054363,
+      "fs_write_bytes_per_s": {
+        "avg": 0.0,
+        "peak": 0.0
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 18118.127429700082,
+        "peak": 134329.58172531356
+      }
+    },
+    "postgres": {
+      "placement": "database (cloud: RDS / Cloud SQL)",
+      "pods": 1,
+      "cpu_cores": {
+        "avg": 0.8968948090036744,
+        "peak": 1.387082002129925
+      },
+      "memory_bytes": {
+        "avg": 111880911.56756757,
+        "peak": 259010560.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 178835.34131711506,
+        "peak": 265976.79319663794
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 313088.1040208323,
+        "peak": 433158.17361322383
+      },
+      "net_rx_bytes": 99253614.43099886,
+      "net_tx_bytes": 173763897.73156193,
+      "fs_write_bytes_per_s": {
+        "avg": 318.31739879243895,
+        "peak": 3073.6620202325385
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 67509.98684811695,
+        "peak": 625123.4869162743
+      }
+    },
+    "prometheus": {
+      "placement": "monitoring",
+      "pods": 1,
+      "cpu_cores": {
+        "avg": 0.04353563815674386,
+        "peak": 0.19717456932838912
+      },
+      "memory_bytes": {
+        "avg": 327941811.8918919,
+        "peak": 345812992.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 49256.10959324573,
+        "peak": 58434.20526586327
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 1716.3750928046584,
+        "peak": 2100.570114022805
+      },
+      "net_rx_bytes": 27337140.82425138,
+      "net_tx_bytes": 952588.1765065854,
+      "fs_write_bytes_per_s": {
+        "avg": 34942.15507952097,
+        "peak": 55632.359436616855
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 213348.24550002432,
+        "peak": 1343226.0595382042
+      }
+    },
+    "grafana": {
+      "placement": "monitoring",
+      "pods": 1,
+      "cpu_cores": {
+        "avg": 0.060022798821415244,
+        "peak": 0.30930565493835827
+      },
+      "memory_bytes": {
+        "avg": 495861981.4054054,
+        "peak": 502677504.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 7367.315112341575,
+        "peak": 15863.234137388568
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 3285.2114590523806,
+        "peak": 4239.083938660209
+      },
+      "net_rx_bytes": 4088859.887349574,
+      "net_tx_bytes": 1823292.3597740713,
+      "fs_write_bytes_per_s": {
+        "avg": 1619.4826825508737,
+        "peak": 3121.6489182885407
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 3282050.6620544894,
+        "peak": 8021811.133915344
+      }
+    },
+    "loki": {
+      "placement": "monitoring",
+      "pods": 1,
+      "cpu_cores": {
+        "avg": 0.04760247648583933,
+        "peak": 0.1383128368435696
+      },
+      "memory_bytes": {
+        "avg": 317089515.2432432,
+        "peak": 350486528.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 80296.5279352924,
+        "peak": 108217.59950423932
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 2381.2396206414137,
+        "peak": 2981.625964689714
+      },
+      "net_rx_bytes": 44564573.00408728,
+      "net_tx_bytes": 1321587.9894559844,
+      "fs_write_bytes_per_s": {
+        "avg": 1158950.8989128447,
+        "peak": 1827402.6765327714
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 262378.9649252534,
+        "peak": 1924514.827787532
+      }
+    },
+    "alloy": {
+      "placement": "every node (DaemonSet)",
+      "pods": 1,
+      "cpu_cores": {
+        "avg": 0.09759681120422997,
+        "peak": 0.17768260038365494
+      },
+      "memory_bytes": {
+        "avg": 101107767.35135135,
+        "peak": 102735872.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 574.0903264129947,
+        "peak": 1690.5544869806208
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 80388.34392744671,
+        "peak": 105908.09628008753
+      },
+      "net_rx_bytes": 318620.1311592121,
+      "net_tx_bytes": 44615530.87973292,
+      "fs_write_bytes_per_s": {
+        "avg": 2354.127930943847,
+        "peak": 3021.21469830629
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 442936.9987726335,
+        "peak": 3648072.5222598845
+      }
+    },
+    "postgres-exporter": {
+      "placement": "monitoring",
+      "pods": 1,
+      "cpu_cores": {
+        "avg": 0.0029805637920644543,
+        "peak": 0.011785224205158946
+      },
+      "memory_bytes": {
+        "avg": 13595066.81081081,
+        "peak": 14499840.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 4065.990491485315,
+        "peak": 5164.622158225569
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 2379.7404894431857,
+        "peak": 3007.116550826572
+      },
+      "net_rx_bytes": 2256624.72277435,
+      "net_tx_bytes": 1320755.971640968,
+      "fs_write_bytes_per_s": {
+        "avg": 0.0,
+        "peak": 0.0
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 6564.722741024624,
+        "peak": 22432.01320096873
+      }
+    },
+    "kube-state-metrics": {
+      "placement": "monitoring",
+      "pods": 1,
+      "cpu_cores": {
+        "avg": 0.01202568377058261,
+        "peak": 0.15600110755856475
+      },
+      "memory_bytes": {
+        "avg": 28773071.56756757,
+        "peak": 31842304.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 900.2625507045582,
+        "peak": 5079.3605182727715
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 19222.69217269267,
+        "peak": 26987.967628645598
+      },
+      "net_rx_bytes": 499645.71564102976,
+      "net_tx_bytes": 10668594.155844431,
+      "fs_write_bytes_per_s": {
+        "avg": 0.0,
+        "peak": 0.0
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 115871.74195115785,
+        "peak": 706861.2214052465
+      }
+    },
+    "node-exporter": {
+      "placement": "every node (DaemonSet)",
+      "pods": 1,
+      "cpu_cores": {
+        "avg": 0.004768739908366228,
+        "peak": 0.012976212117853124
+      },
+      "memory_bytes": {
+        "avg": 14973426.162162162,
+        "peak": 16031744.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 2601555.4934180416,
+        "peak": 4964198.466276437
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 2475596.6331609604,
+        "peak": 3698178.1322020763
+      },
+      "net_rx_bytes": 1443863298.847013,
+      "net_tx_bytes": 1373956131.404333,
+      "fs_write_bytes_per_s": {
+        "avg": 0.0,
+        "peak": 0.0
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 10081.3034027322,
+        "peak": 57239.62450167722
+      }
+    },
+    "prometheus-operator": {
+      "placement": "monitoring",
+      "pods": 1,
+      "cpu_cores": {
+        "avg": 0.007524524686523998,
+        "peak": 0.02462693186399677
+      },
+      "memory_bytes": {
+        "avg": 31874297.08108108,
+        "peak": 33689600.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 689.9030784353171,
+        "peak": 990.7399612762017
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 1208.6107839111087,
+        "peak": 1513.3218284367372
+      },
+      "net_rx_bytes": 382896.20853160095,
+      "net_tx_bytes": 670778.9850706653,
+      "fs_write_bytes_per_s": {
+        "avg": 0.0,
+        "peak": 0.0
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 62193.862983870094,
+        "peak": 441062.86983564915
+      }
+    },
+    "kubernetes": {
+      "placement": "control plane (managed in the cloud)",
+      "pods": 8,
+      "cpu_cores": {
+        "avg": 0.3979662385095457,
+        "peak": 0.7485711411126461
+      },
+      "memory_bytes": {
+        "avg": 819265314.5945946,
+        "peak": 852983808.0
+      },
+      "net_rx_bytes_per_s": {
+        "avg": 15592158.233636105,
+        "peak": 29464468.391071085
+      },
+      "net_tx_bytes_per_s": {
+        "avg": 14823039.648254985,
+        "peak": 21442062.011941202
+      },
+      "net_rx_bytes": 8653647819.66804,
+      "net_tx_bytes": 8226787004.781516,
+      "fs_write_bytes_per_s": {
+        "avg": 62110.77476656149,
+        "peak": 189785.95345956035
+      },
+      "fs_read_bytes_per_s": {
+        "avg": 468987.0835022863,
+        "peak": 1712927.3634165335
+      }
+    }
+  },
+  "node": {
+    "cores": 6.0,
+    "cpu_cores_used": {
+      "avg": 3.960141738076906,
+      "peak": 4.5628888888888905
+    },
+    "memory_used_bytes": {
+      "avg": 4261148395.243243,
+      "peak": 4649807872.0
+    },
+    "memory_total_bytes": 5147594752.0,
+    "disk_write_bytes_per_s": {
+      "avg": 1273754.5097277865,
+      "peak": 2017598.5777777776
+    },
+    "disk_read_bytes_per_s": {
+      "avg": 3045647.697724921,
+      "peak": 10258750.577777777
+    },
+    "disk_write_iops": {
+      "avg": 14.524383229325668,
+      "peak": 19.73333333333333
+    },
+    "disk_read_iops": {
+      "avg": 102.25602579857505,
+      "peak": 374.88515920855093
+    }
+  },
+  "external": {
+    "requests_per_s": {
+      "avg": 1131.597635849217,
+      "peak": 1443.9111111111108
+    },
+    "requests": 628036.6878963155,
+    "errors_5xx": 0.0,
+    "bytes_in_per_s": {
+      "avg": 1450.2033086580598,
+      "peak": 3124.865824444444
+    },
+    "bytes_out_per_s": {
+      "avg": 1608459.3657116394,
+      "peak": 3638699.7111111106
+    },
+    "bytes_in": 804862.8363052232,
+    "bytes_out": 892694947.9699599,
+    "latency_s": {
+      "p50": 0.004099974578627576,
+      "p95": 0.5647333056698367,
+      "p99": 2.8327365487720013
+    },
+    "services": {
+      "app-backend-80@kubernetes": {
+        "requests_per_s": {
+          "avg": 416.69354455938435,
+          "peak": 528.4444444444443
+        },
+        "requests": 231264.91723045832,
+        "response_bytes": 38624446.538663715,
+        "bytes_per_response": 167.01386012723228,
+        "latency_p95_s": 1.3483016557407
+      },
+      "app-frontend-80@kubernetes": {
+        "requests_per_s": {
+          "avg": 715.4761839538717,
+          "peak": 929.7333333333331
+        },
+        "requests": 397089.2820943988,
+        "response_bytes": 854763465.9247468,
+        "bytes_per_response": 2152.5724930584915,
+        "latency_p95_s": 0.02415122558507267
+      },
+      "monitoring-kps-prometheus-9090@kubernetes": {
+        "requests_per_s": {
+          "avg": 0.03001476819277532,
+          "peak": 0.17777777777777776
+        },
+        "requests": 16.658196346990305,
+        "response_bytes": 2618.868304578288,
+        "bytes_per_response": 157.21199642669887,
+        "latency_p95_s": 5.0
+      }
+    }
+  },
+  "database": {
+    "transactions_per_s": {
+      "avg": 592.5474418099972,
+      "peak": 806.2666666666665
+    },
+    "statements": 205221.59999999998,
+    "statements_per_s": 380.03999999999996,
+    "mean_statement_ms": 0.1399038866685746,
+    "rows_fetched_per_s": {
+      "avg": 15265.443105373071,
+      "peak": 23157.399999999998
+    },
+    "rows_written_per_s": {
+      "avg": 0.0,
+      "peak": 0.0
+    },
+    "connections": {
+      "avg": 19.13888888888889,
+      "peak": 79.0
+    },
+    "cache_hit_ratio": 0.9999998866610481,
+    "size_start_bytes": 8664767.0,
+    "size_end_bytes": 8664767.0
+  },
+  "storage": {
+    "postgres_bytes": [
+      8664767.0,
+      8664767.0
+    ],
+    "prometheus_tsdb_bytes": [
+      155454680.0,
+      385041597.0
+    ],
+    "prometheus_head_series": 41393.0,
+    "prometheus_samples_per_s": 2633.6495238095235,
+    "loki_ingested_bytes": 245932298.74285713,
+    "loki_ingested_lines": 1931132.5714285711
+  },
+  "name": "04-app-1500/step-1500",
+  "note": "1500 simultaneous users (Locust), measured after a 60 s ramp"
+}
