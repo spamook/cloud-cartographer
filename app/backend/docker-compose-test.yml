@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:17-alpine3.21
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres_test
+      POSTGRES_PASSWORD: postgres_test
+      POSTGRES_DB: postgres_test
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres_test']
+      interval: 1s
+      retries: 10
+      timeout: 1s
+
+  run-tests:
+    image: golang:1.24-alpine3.21
+    volumes:
+      - ./:/app
+    working_dir: /app/tests
+    depends_on:
+      db:
+        condition: service_healthy
+    command: go test -v

@@ -1,15 +1,44 @@
-# Sample application
+# Sample app
 
-The application under analysis: a React frontend, a Go backend and PostgreSQL. It is distributed
-as a single `sample-app.zip`.
+This is a sample app with React frontend, Go backend and Postgres database.
 
-The server it is downloaded from answered HTTP 502 from 2026-11-04 until this was written, so the
-source is not in this folder yet. Once it is here, the next steps are:
+It allows users to register, login and logout.
+Accounts are stored in Postgres database.
 
-1. container images: the app's own Dockerfiles, or multi-stage Dockerfiles added here (the
-   frontend on nginx-unprivileged, since the namespace allows only non-root containers);
-2. the chart [`deploy/charts/sample-app`](../deploy/charts/sample-app) (frontend, backend, ingress
-   `/` and `/api`, HPA, PDB): set the images, ports, health path and environment variables in its
-   values. It connects the backend to the PostgreSQL that `scripts/setup.sh` already runs;
-3. a Locust scenario for its API and the load test described in
-   [the infrastructure analysis](../docs/1-infrastructure-analysis.md#application-under-load).
+[Go fiber](https://github.com/gofiber/fiber) framework is used for backend.
+
+## Usage
+
+### Build images
+
+```
+docker compose build
+```
+
+### Run application
+
+```
+docker compose up -d
+```
+
+### Access frontend
+
+```
+http://localhost:3000
+```
+
+### Clean up
+
+```
+docker compose down -v
+```
+
+## Endpoints
+
+| endpoint      | method | body                                           | description       |
+| ------------- | ------ | ---------------------------------------------- | ----------------- |
+| /api/ping     | GET    |                                                | ping server       |
+| /api/session  | GET    |                                                | get user session  |
+| /api/login    | POST   | { email String, password String }              | login user        |
+| /api/register | POST   | { email String, password String, name String } | register new user |
+|               |        |                                                |                   |
